@@ -4,6 +4,8 @@ Regras:
 - Leia o PDF inteiro, mas extraia somente o conteúdo programático (as disciplinas e os assuntos cobrados) e os metadados do concurso. Ignore regras de inscrição, isenção, recursos, cronograma administrativo etc.
 - Preserve a redação do edital nos títulos dos tópicos. Não resuma, não reescreva, não invente tópicos. Remova apenas a numeração do início do texto (ela vai no campo "codigo").
 - Editais costumam listar vários assuntos numa frase só, separados por ponto e vírgula ou ponto. Cada item numerado vira um tópico. Quando um item numerado tiver subitens numerados (2.1, 2.2...), eles vão em "subtopicos". Quando não houver numeração, quebre por ponto e vírgula ou ponto final, mantendo cada assunto completo.
+- Blocos no formato "Assunto: item; item; item" (muito comuns em TI e em conhecimentos específicos, ex.: "Banco de Dados: Modelo Entidade-Relacionamento; Normalização; Comandos SQL...") viram UM tópico com o título do assunto ("Banco de Dados") e UM subtópico para cada item da lista. Nunca deixe um tópico com uma lista de assuntos inteira no título nem um bloco grande sem subtópicos: cada unidade de estudo deve caber em uma ou duas horas de estudo.
+- Itens que só enumeram versões ou ferramentas do mesmo assunto (ex.: "PostgreSQL versões 15, 16, 17 e 18; Oracle 19c; MySQL versão 8") podem ficar juntos num subtópico só.
 - Disciplinas que se repetem para vários cargos devem aparecer uma única vez, considerando o cargo indicado pelo usuário.
 - Se o edital trouxer conhecimentos básicos e específicos, inclua os dois blocos.
 - Datas no formato AAAA-MM-DD. Use null quando a informação não estiver no documento.
