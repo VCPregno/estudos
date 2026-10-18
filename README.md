@@ -4,7 +4,17 @@ Plataforma pessoal de estudos para concursos (Direito e TI). Next.js 16 (App Rou
 
 Este é o primeiro passo do projeto: arquitetura de pastas, schema completo do banco, algoritmo do Ciclo Dinâmico, Dashboard (Meu Dia) com timer e ofensiva, e o Importador de Edital com IA. Os demais módulos já têm rota, tabelas e funções no banco, faltando a interface.
 
-## Rodar
+## Produção
+
+O app está em https://estudos-victor.vercel.app (Vercel, plano Hobby) com banco no Supabase (projeto `estudos`, região São Paulo, plano Free).
+
+Toda alteração enviada para a branch `main` do GitHub é publicada sozinha pela Vercel em cerca de um minuto.
+
+Os valores públicos de produção (URL do Supabase, publishable key e `AI_PROVIDER`) ficam em `.env.production`. A chave secreta da IA (`GEMINI_API_KEY`) fica só na Vercel: Settings, Environment Variables. Para trocar a chave ou passar a usar o Claude (`ANTHROPIC_API_KEY` e `AI_PROVIDER=claude`), altere lá e faça um Redeploy.
+
+Para instalar como app: no Chrome ou no Edge do PC, abra o endereço e use "Instalar app" (ícone na barra de endereço ou no menu). No iPad e no iPhone: Safari, Compartilhar, "Adicionar à Tela de Início".
+
+## Rodar localmente
 
 ```bash
 npm install
