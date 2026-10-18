@@ -7,7 +7,8 @@ describe("htmlParaTexto", () => {
       <p align="center"><b>LEI N&ordm; 9.784, DE 29 DE JANEIRO DE 1999.</b></p>
       <p><a name="art1"></a>Art. 1<sup>o</sup> Esta Lei estabelece normas b&aacute;sicas&nbsp;sobre o processo.</p>
       <p><strike>Art. 2&ordm; Texto antigo.</strike></p>
-      <p>Art. 2&ordm; A Administração obedecerá aos princípios da legalidade, <strike>velho</strike>finalidade.<br>
+      <p>Art. 2&ordm; A Administração obedecerá
+      aos princípios da legalidade, <strike>velho</strike>finalidade.<br>
       Parágrafo único. Nos processos…</p>
       <!-- comentário -->
     </body></html>`;
@@ -15,7 +16,7 @@ describe("htmlParaTexto", () => {
     expect(r.titulo).toBe("L9784");
     expect(r.texto.split("\n")).toEqual([
       "LEI Nº 9.784, DE 29 DE JANEIRO DE 1999.",
-      "Art. 1o Esta Lei estabelece normas básicas sobre o processo.",
+      "Art. 1º Esta Lei estabelece normas básicas sobre o processo.",
       "Art. 2º A Administração obedecerá aos princípios da legalidade, finalidade.",
       "Parágrafo único. Nos processos…",
     ]);

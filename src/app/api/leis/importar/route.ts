@@ -45,12 +45,20 @@ export async function POST(request: Request) {
 
   const bytes = new Uint8Array(await r.arrayBuffer());
   if (bytes.length > 8 * 1024 * 1024) return NextResponse.json({ erro: "Página grande demais." }, { status: 413 });
-  const inicio = new TextDecoder("latin1").decode(bytes.slice(0, 4096));
+  // Muitas páginas oficiais (Planalto) estão em windows-1252 e nem sempre
+  // declaram isso. Tenta UTF-8 estrito; se não for UTF-8 válido, usa o declarado
+  // ou windows-1252.
+  const inicio = new TextDecoder("latin1").decode(bytes.slice(0, 8192));
   let html: string;
   try {
-    html = new TextDecoder(charsetDe(tipo, inicio)).decode(bytes);
+    html = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
-    html = new TextDecoder("utf-8").decode(bytes);
+    const declarado = charsetDe(tipo, inicio);
+    try {
+      html = new TextDecoder(declarado === "utf-8" ? "windows-1252" : declarado).decode(bytes);
+    } catch {
+      html = new TextDecoder("windows-1252").decode(bytes);
+    }
   }
   const { titulo, texto } = htmlParaTexto(html);
   if (texto.length < 200) return NextResponse.json({ erro: "A página não parece ter o texto da lei. Copie o texto e cole." }, { status: 422 });

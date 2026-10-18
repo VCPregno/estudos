@@ -54,7 +54,9 @@ export function htmlParaTexto(html: string): { titulo: string | null; texto: str
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<(script|style|head|noscript)\b[\s\S]*?<\/\1>/gi, "")
     // texto riscado = revogado ou redação anterior
-    .replace(/<(strike|s|del)\b[^>]*>[\s\S]*?<\/\1>/gi, "");
+    .replace(/<(strike|s|del)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
+    // quebras de linha do código-fonte não são parágrafos
+    .replace(/\s+/g, " ");
   h = h
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|h[1-6]|li|tr|table|blockquote|center)>/gi, "\n")
@@ -66,6 +68,8 @@ export function htmlParaTexto(html: string): { titulo: string | null; texto: str
     .split("\n")
     .map((l) => l.replace(/[ \t\r\f\v]+/g, " ").trim())
     .filter((l) => l.length > 0)
+    // "Art. 1o" e "§ 2o" (sobrescrito perdido) viram ordinal
+    .map((l) => l.replace(/((?:Art\.|§)\s*\d+)o\b/g, "$1º"))
     // linhas que sobraram só com parênteses de "(Revogado)" sem texto útil continuam: são informação
     .join("\n");
   const titulo = tituloTag ? decodificarEntidades(tituloTag).replace(/\s+/g, " ").trim() || null : null;
