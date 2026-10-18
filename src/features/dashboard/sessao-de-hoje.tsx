@@ -17,6 +17,7 @@ function contextoDoItem(item: ItemPainel): ContextoSessao {
     revisaoId: item.revisaoId ?? null,
     turno: item.turno,
     minutosPlanejados: item.minutos,
+    cronogramaItemId: item.cronogramaItemId,
   };
 }
 
@@ -100,11 +101,12 @@ export function SessaoDeHoje({ data }: { data: DashboardData }) {
       <section className="rounded-xl border bg-card p-6 md:p-8">
         <h2 className="text-lg font-semibold">Sessão de hoje</h2>
         <p className="mt-2 max-w-prose text-sm text-muted-foreground">
-          Ainda não há um ciclo de estudos ativo. Importe o PDF de um edital: a ementa vira a sua fila de tópicos e o
-          cronograma passa a montar o seu dia.
+          {data.temEdital
+            ? "Seu edital já está na ementa. Falta montar o cronograma: com ele, esta tela passa a mostrar o que estudar a cada dia."
+            : "Ainda não há um ciclo de estudos ativo. Importe o PDF de um edital: a ementa vira a sua fila de tópicos e o cronograma passa a montar o seu dia."}
         </p>
         <Button asChild variant="highlight" className="mt-5">
-          <Link href="/editais/importar">Importar edital</Link>
+          {data.temEdital ? <Link href="/cronograma">Montar cronograma</Link> : <Link href="/editais/importar">Importar edital</Link>}
         </Button>
       </section>
     );
@@ -161,9 +163,10 @@ export function SessaoDeHoje({ data }: { data: DashboardData }) {
       <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:gap-10">
         <div className="flex flex-col items-center gap-3">
           <AnelCiclo fatias={data.ciclo.fatias}>{centro}</AnelCiclo>
-          <p className="text-center text-xs text-muted-foreground">
-            Volta {data.ciclo.volta}, turno {posicaoNaVolta} de {data.ciclo.fatias.length}
-            {atual ? ` em ${atual.disciplina}` : ""}
+          <p className="max-w-60 text-center text-xs text-muted-foreground">
+            {data.ciclo.modo === "fixo"
+              ? "Modo fixo: o plano não se move, e o que passar do dia fica como atrasado."
+              : `Volta ${data.ciclo.volta}, turno ${posicaoNaVolta} de ${data.ciclo.fatias.length}${atual ? ` em ${atual.disciplina}` : ""}`}
           </p>
         </div>
 
@@ -207,11 +210,8 @@ export function SessaoDeHoje({ data }: { data: DashboardData }) {
                         {item.tipo === "revisao" ? <RotateCcw className="size-3 shrink-0" /> : <BookOpen className="size-3 shrink-0" />}
                         <span className="truncate">
                           {item.disciplina}
-                          {item.tipo === "revisao"
-                            ? `, ${item.numeroRevisao}ª revisão${item.atrasadaDesde ? `, era para ${formatarData.curta(item.atrasadaDesde)}` : ""}`
-                            : item.continuacao
-                              ? ", continuação"
-                              : ""}
+                          {item.tipo === "revisao" ? `, ${item.numeroRevisao}ª revisão` : item.continuacao ? ", continuação" : ""}
+                          {item.atrasadaDesde ? `, era para ${formatarData.curta(item.atrasadaDesde)}` : ""}
                         </span>
                       </p>
                     </div>

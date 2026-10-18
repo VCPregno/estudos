@@ -4,6 +4,7 @@ import { type ConfigCiclo, type DiaSemana, type TopicoCiclo, hojeEmSaoPaulo, som
 import { supabaseConfigurado } from "@/lib/env";
 import { usuarioAtual } from "@/lib/supabase/server";
 import { entradaDemo } from "./demo";
+import { COLUNAS_TOPICO, type TopicoRow, topicosFolha } from "./topicos";
 import { type DashboardData, type EntradaPainel, indiceDeCor, montarPainel } from "./painel";
 
 export interface CronogramaRow {
@@ -54,32 +55,38 @@ export async function carregarCicloAtivo(supabase: Awaited<ReturnType<typeof usu
     .maybeSingle();
   if (!cron) return null;
 
-  const [{ data: tops }, { data: revs }] = await Promise.all([
-    supabase
-      .from("topicos_ementa")
-      .select("id, disciplina_id, parent_id, titulo, ordem, minutos_estimados, minutos_estudados, teoria_concluida")
-      .eq("edital_id", cron.edital_id),
+  const ehFixo = (cron as unknown as CronogramaRow).modo === "fixo";
+  const [{ data: tops }, { data: revs }, { data: itens }, { data: ultimo }] = await Promise.all([
+    supabase.from("topicos_ementa").select(COLUNAS_TOPICO).eq("edital_id", cron.edital_id),
     supabase
       .from("revisoes_programadas")
       .select("id, topico_id, disciplina_id, numero, data_alvo")
       .eq("status", "pendente"),
+    // modo fixo: plano gravado; pendentes até o fim da semana que vem (inclui os atrasados)
+    ehFixo
+      ? supabase
+          .from("cronograma_itens")
+          .select("id, data, ordem_no_dia, tipo, disciplina_id, topico_id, minutos_planejados, status")
+          .eq("cronograma_id", cron.id)
+          .eq("tipo", "teoria")
+          .eq("status", "pendente")
+          .lte("data", somarDias(hojeEmSaoPaulo(), 14))
+          .order("data")
+          .order("ordem_no_dia")
+      : Promise.resolve({ data: null }),
+    ehFixo
+      ? supabase
+          .from("cronograma_itens")
+          .select("data")
+          .eq("cronograma_id", cron.id)
+          .eq("tipo", "teoria")
+          .order("data", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
-  // Unidades de estudo = tópicos folha. A ordem combina pai e filho para manter a sequência do edital.
-  const todos = tops ?? [];
-  const comFilhos = new Set(todos.map((t) => t.parent_id).filter(Boolean));
-  const ordemPai = new Map(todos.filter((t) => !t.parent_id).map((t) => [t.id, t.ordem]));
-  const topicos: TopicoCiclo[] = todos
-    .filter((t) => !comFilhos.has(t.id))
-    .map((t) => ({
-      id: t.id,
-      disciplinaId: t.disciplina_id,
-      titulo: t.titulo,
-      ordem: t.parent_id ? (ordemPai.get(t.parent_id) ?? 0) * 1000 + t.ordem : t.ordem * 1000,
-      minutosEstimados: t.minutos_estimados,
-      minutosEstudados: t.minutos_estudados,
-      teoriaConcluida: t.teoria_concluida,
-    }));
+  const topicos: TopicoCiclo[] = topicosFolha((tops ?? []) as TopicoRow[]);
 
   type DiscJoin = { disciplina_id: string; ordem: number; peso: number; ativo: boolean; disciplinas: { nome: string; cor: string | null } | null };
   const disciplinas = ((cron.cronograma_disciplinas ?? []) as unknown as DiscJoin[])
@@ -110,6 +117,16 @@ export async function carregarCicloAtivo(supabase: Awaited<ReturnType<typeof usu
       dataAlvo: r.data_alvo,
     })),
     edital: { id: edital.id, nome: edital.nome, banca: edital.banca, dataProva: edital.data_prova },
+    itensFixos: ehFixo
+      ? (itens ?? []).map((i) => ({
+          id: i.id as string,
+          data: i.data as string,
+          disciplinaId: i.disciplina_id as string,
+          topicoId: i.topico_id as string,
+          minutos: i.minutos_planejados as number,
+        }))
+      : null,
+    ultimaDataFixa: (ultimo as { data: string } | null)?.data ?? null,
   };
 }
 
@@ -120,7 +137,7 @@ export async function carregarDashboard(): Promise<DashboardData> {
   const { supabase, user } = await usuarioAtual();
   if (!user) redirect("/login");
 
-  const [progresso, ofensiva, config, flashcards, ciclo] = await Promise.all([
+  const [progresso, ofensiva, config, flashcards, ciclo, editais] = await Promise.all([
     supabase
       .from("progresso_diario")
       .select("dia, segundos_estudados, questoes_resolvidas, questoes_certas, flashcards_revisados")
@@ -130,6 +147,7 @@ export async function carregarDashboard(): Promise<DashboardData> {
     supabase.from("configuracoes").select("meta_diaria_min").maybeSingle(),
     supabase.from("flashcards").select("id", { count: "exact", head: true }).lte("vencimento", new Date().toISOString()),
     carregarCicloAtivo(supabase),
+    supabase.from("editais").select("id", { count: "exact", head: true }),
   ]);
 
   const entrada: EntradaPainel = {
@@ -149,6 +167,7 @@ export async function carregarDashboard(): Promise<DashboardData> {
       flashcards: p.flashcards_revisados,
     })),
     flashcardsDevidos: flashcards.count ?? 0,
+    temEdital: (editais.count ?? 0) > 0,
     ciclo,
   };
   return montarPainel(entrada);

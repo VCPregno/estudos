@@ -40,6 +40,8 @@ export interface EntradaPainel {
   metaDiariaMin: number;
   progresso: ProgressoDia[];
   flashcardsDevidos: number;
+  /** já existe edital importado (para orientar o próximo passo quando não há ciclo) */
+  temEdital?: boolean;
   ciclo: null | {
     cronogramaId: string;
     config: ConfigCiclo;
@@ -49,6 +51,10 @@ export interface EntradaPainel {
     topicos: TopicoCiclo[];
     revisoes: RevisaoPendente[];
     edital: { id: string; nome: string; banca: string | null; dataProva: DataISO | null };
+    /** Modo fixo: itens de teoria pendentes do plano gravado (inclui atrasados). null no dinâmico. */
+    itensFixos?: { id: string; data: DataISO; disciplinaId: string; topicoId: string; minutos: number }[] | null;
+    /** Modo fixo: data do último item do plano (conclusão "no plano"). */
+    ultimaDataFixa?: DataISO | null;
   };
 }
 
@@ -66,7 +72,10 @@ export interface ItemPainel {
   concluiTopico?: boolean;
   revisaoId?: string | null;
   numeroRevisao?: number;
+  /** Revisão vencida, ou (modo fixo) teoria planejada para um dia que já passou. */
   atrasadaDesde?: DataISO | null;
+  /** Modo fixo: item do plano gravado (cronograma_itens). */
+  cronogramaItemId?: string;
 }
 
 export interface DiaSemanaPainel {
@@ -90,6 +99,7 @@ export interface FatiaCiclo {
 
 export interface DashboardData {
   modo: "demo" | "real";
+  temEdital: boolean;
   hoje: DataISO;
   ofensiva: EntradaPainel["ofensiva"];
   metaDiariaMin: number;
@@ -176,11 +186,60 @@ export function montarPainel(e: EntradaPainel): DashboardData {
         : { ...base, revisaoId: item.revisaoId, numeroRevisao: item.numero, atrasadaDesde: item.atrasadaDesde };
     };
 
-    for (const dia of projecao.dias) {
-      projetadoPorDia.set(dia.data, {
-        capacidadeMin: dia.capacidadeMin,
-        itens: dia.itens.map((it, i) => paraPainel(it, i, dia.data)),
-      });
+    const fixo = c.config.modo === "fixo" && c.itensFixos;
+    if (fixo) {
+      // Modo fixo: o plano gravado não se move. O que ficou para trás aparece hoje como atrasado.
+      const itens = c.itensFixos!;
+      const paraItemFixo = (i: (typeof itens)[number]): ItemPainel => {
+        const d = disc.get(i.disciplinaId);
+        return {
+          chave: `f-${i.id}`,
+          tipo: "teoria",
+          disciplinaId: i.disciplinaId,
+          disciplina: d?.nome ?? "Disciplina",
+          cor: d?.cor ?? 1,
+          topicoId: i.topicoId,
+          topico: top.get(i.topicoId)?.titulo ?? "Tópico",
+          minutos: i.minutos,
+          cronogramaItemId: i.id,
+          atrasadaDesde: i.data < e.hoje ? i.data : null,
+        };
+      };
+      const paraRevisao = (r: RevisaoPendente, data: DataISO): ItemPainel => {
+        const d = disc.get(r.disciplinaId);
+        return {
+          chave: `r-${r.id}`,
+          tipo: "revisao",
+          disciplinaId: r.disciplinaId,
+          disciplina: d?.nome ?? "Disciplina",
+          cor: d?.cor ?? 1,
+          topicoId: r.topicoId,
+          topico: top.get(r.topicoId)?.titulo ?? "Tópico revisado",
+          minutos: c.config.revisoes.minutosPorRevisao,
+          revisaoId: r.id,
+          numeroRevisao: r.numero,
+          atrasadaDesde: r.dataAlvo < data ? r.dataAlvo : null,
+        };
+      };
+      for (let i = 0; i < 14; i++) {
+        const data = somarDias(e.hoje, i);
+        const ehHoje = i === 0;
+        const revs = c.config.revisoes.habilitadas
+          ? c.revisoes.filter((r) => (ehHoje ? r.dataAlvo <= data : r.dataAlvo === data))
+          : [];
+        const teoria = itens.filter((it) => (ehHoje ? it.data <= data : it.data === data));
+        projetadoPorDia.set(data, {
+          capacidadeMin: c.config.minutosPorDia[diaDaSemana(data)] ?? 0,
+          itens: [...revs.map((r) => paraRevisao(r, data)), ...teoria.map(paraItemFixo)],
+        });
+      }
+    } else {
+      for (const dia of projecao.dias) {
+        projetadoPorDia.set(dia.data, {
+          capacidadeMin: dia.capacidadeMin,
+          itens: dia.itens.map((it, i) => paraPainel(it, i, dia.data)),
+        });
+      }
     }
     const doDia = projetadoPorDia.get(e.hoje);
     sessaoHoje = doDia ?? { itens: [], capacidadeMin: 0 };
@@ -201,9 +260,10 @@ export function montarPainel(e: EntradaPainel): DashboardData {
             disciplinaId,
             disciplina: d.nome,
             cor: d.cor,
-            atual: turno === c.estado.posicao,
-            progresso:
-              turno < c.estado.posicao
+            atual: !fixo && turno === c.estado.posicao,
+            progresso: fixo
+              ? 0
+              : turno < c.estado.posicao
                 ? 1
                 : turno === c.estado.posicao
                   ? Math.min(c.estado.minutosNoTurno / c.config.duracaoBlocoMin, 1)
@@ -223,7 +283,7 @@ export function montarPainel(e: EntradaPainel): DashboardData {
       topicosTotal: c.topicos.length,
       topicosConcluidos: c.topicos.filter((t) => t.teoriaConcluida).length,
       horasRestantes: Math.round(fila.reduce((s, p) => s + p.minutos, 0) / 60),
-      conclusaoPlano: est.noPlano,
+      conclusaoPlano: fixo ? (c.ultimaDataFixa ?? null) : est.noPlano,
       conclusaoRitmo: est.noRitmoAtual,
       ritmo: est.ritmo,
     };
@@ -244,6 +304,7 @@ export function montarPainel(e: EntradaPainel): DashboardData {
 
   return {
     modo: e.modo,
+    temEdital: e.temEdital ?? e.ciclo !== null,
     hoje: e.hoje,
     ofensiva: e.ofensiva,
     metaDiariaMin: e.metaDiariaMin,

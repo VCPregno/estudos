@@ -21,6 +21,8 @@ export interface ContextoSessao {
   /** turno do ciclo (para avançar a posição do ciclo dinâmico ao encerrar) */
   turno?: number;
   minutosPlanejados?: number;
+  /** modo fixo: item do plano gravado, marcado como concluído ao encerrar */
+  cronogramaItemId?: string;
 }
 
 export interface SessaoEncerrada {

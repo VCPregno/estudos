@@ -142,7 +142,9 @@ export function PainelDashboard({ data }: { data: DashboardData }) {
           <Edital edital={data.edital} hoje={data.hoje} />
         ) : (
           <section className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-            Sem edital ativo. A data estimada de conclusão aparece aqui depois que você importar um edital e criar o cronograma.
+            {data.temEdital
+              ? "A data estimada de conclusão aparece aqui assim que você montar o cronograma."
+              : "Sem edital ativo. A data estimada de conclusão aparece aqui depois que você importar um edital e criar o cronograma."}
           </section>
         )}
       </div>

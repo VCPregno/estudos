@@ -20,6 +20,7 @@ const SessaoSchema = z.object({
     revisaoId: z.string().nullable().optional(),
     turno: z.number().int().optional(),
     minutosPlanejados: z.number().optional(),
+    cronogramaItemId: z.string().optional(),
   }),
 });
 
@@ -44,6 +45,7 @@ export async function salvarSessao(dados: unknown): Promise<ResultadoSalvarSessa
   const uuid = z.uuid();
   const disciplinaId = uuid.safeParse(s.contexto.disciplinaId).success ? s.contexto.disciplinaId : null;
   const topicoId = uuid.safeParse(s.contexto.topicoId).success ? s.contexto.topicoId : null;
+  const cronogramaItemId = uuid.safeParse(s.contexto.cronogramaItemId).success ? s.contexto.cronogramaItemId : null;
 
   // O ciclo é lido ANTES de gravar a sessão: o trigger soma minutos ao tópico,
   // e o avanço precisa da fila como estava quando o bloco foi planejado.
@@ -53,6 +55,7 @@ export async function salvarSessao(dados: unknown): Promise<ResultadoSalvarSessa
     tipo: s.contexto.tipo,
     disciplina_id: disciplinaId,
     topico_id: topicoId,
+    cronograma_item_id: cronogramaItemId,
     inicio: s.inicio,
     fim: s.fim,
     segundos_liquidos: s.segundosLiquidos,
@@ -70,6 +73,13 @@ export async function salvarSessao(dados: unknown): Promise<ResultadoSalvarSessa
         .update({ posicao_ciclo: novo.posicao, minutos_no_turno: novo.minutosNoTurno })
         .eq("id", ciclo.cronogramaId);
     }
+  }
+
+  if (cronogramaItemId) {
+    await supabase
+      .from("cronograma_itens")
+      .update({ status: "concluido", minutos_realizados: Math.round(s.segundosLiquidos / 60), concluido_em: s.fim })
+      .eq("id", cronogramaItemId);
   }
 
   if (s.contexto.tipo === "revisao" && s.contexto.revisaoId && uuid.safeParse(s.contexto.revisaoId).success) {
