@@ -289,8 +289,16 @@ export function montarPainel(e: EntradaPainel): DashboardData {
     };
   }
 
+  // Meta do dia: o tempo que o cronograma reserva para hoje (0 = folga); sem cronograma, a meta configurada
+  const metaDoDia = e.ciclo
+    ? e.hoje < e.ciclo.config.dataInicio
+      ? 0
+      : (e.ciclo.config.minutosPorDia[diaDaSemana(e.hoje)] ?? 0)
+    : e.metaDiariaMin;
+
+  // Próximos 7 dias a partir de hoje (o que já passou aparece no gráfico e em "Esta semana")
   const agendaSemana: DiaSemanaPainel[] = Array.from({ length: 7 }, (_, i) => {
-    const data = somarDias(inicioSemana, i);
+    const data = somarDias(e.hoje, i);
     const proj = projetadoPorDia.get(data);
     return {
       data,
@@ -307,7 +315,7 @@ export function montarPainel(e: EntradaPainel): DashboardData {
     temEdital: e.temEdital ?? e.ciclo !== null,
     hoje: e.hoje,
     ofensiva: e.ofensiva,
-    metaDiariaMin: e.metaDiariaMin,
+    metaDiariaMin: metaDoDia,
     estudadoHojeSeg,
     semana,
     serie14,

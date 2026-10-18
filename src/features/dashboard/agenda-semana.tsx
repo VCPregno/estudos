@@ -2,13 +2,13 @@ import { RotateCcw } from "lucide-react";
 import type { DiaSemanaPainel } from "@/lib/data/painel";
 import { cn, formatarData, formatarDuracao } from "@/lib/utils";
 
-/** Semana corrente (segunda a domingo): o que foi estudado nos dias passados e o plano daqui pra frente. */
+/** Os próximos 7 dias a partir de hoje, com o plano do ciclo (hoje também mostra o que já foi estudado). */
 export function AgendaSemana({ dias }: { dias: DiaSemanaPainel[] }) {
   return (
     <section aria-labelledby="agenda-semana" className="min-w-0">
       <div className="mb-3 flex items-baseline justify-between">
         <h2 id="agenda-semana" className="font-semibold tracking-tight">
-          Agenda da semana
+          Próximos 7 dias
         </h2>
         <span className="hidden text-xs text-muted-foreground sm:inline">O ciclo reprograma sozinho os dias sem estudo</span>
       </div>

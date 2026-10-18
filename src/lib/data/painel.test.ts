@@ -29,7 +29,9 @@ describe("montarPainel", () => {
     const d = montarPainel(entradaDemo(HOJE));
     expect(d.sessaoHoje!.itens.length).toBeGreaterThan(0);
     expect(d.agendaSemana).toHaveLength(7);
-    expect(d.agendaSemana.find((x) => x.ehHoje)!.data).toBe(HOJE);
+    expect(d.agendaSemana[0]).toMatchObject({ data: HOJE, ehHoje: true });
+    expect(d.agendaSemana[6].data).toBe("2026-10-27");
+    expect(d.agendaSemana.every((x) => !x.passado)).toBe(true);
     expect(d.ciclo!.fatias.some((f) => f.atual)).toBe(true);
     expect(d.temEdital).toBe(true);
   });
@@ -51,6 +53,14 @@ describe("montarPainel", () => {
     expect(d.edital!.conclusaoPlano).toBe("2027-01-30");
     expect(d.ciclo!.modo).toBe("fixo");
     expect(d.ciclo!.fatias.every((f) => !f.atual && f.progresso === 0)).toBe(true);
+  });
+
+  it("meta do dia segue o cronograma e é zero antes do início", () => {
+    const e = entradaDemo(HOJE); // quarta: 90 min no cronograma de demonstração
+    expect(montarPainel(e).metaDiariaMin).toBe(90);
+    const antes = { ...e, ciclo: { ...e.ciclo!, config: { ...e.ciclo!.config, dataInicio: "2026-10-22" } } };
+    expect(montarPainel(antes).metaDiariaMin).toBe(0);
+    expect(montarPainel({ ...e, ciclo: null, metaDiariaMin: 120 }).metaDiariaMin).toBe(120);
   });
 
   it("sem ciclo, informa se já existe edital", () => {

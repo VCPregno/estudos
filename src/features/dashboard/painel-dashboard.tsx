@@ -11,8 +11,10 @@ function Edital({ edital, hoje }: { edital: NonNullable<DashboardData["edital"]>
   const pct = edital.topicosTotal ? Math.round((100 * edital.topicosConcluidos) / edital.topicosTotal) : 0;
   const diasProva = edital.dataProva ? diferencaEmDias(edital.dataProva, hoje) : null;
   const ritmoPct = edital.ritmo !== null ? Math.round(edital.ritmo * 100) : null;
-  const passaDaProva =
-    edital.dataProva && (edital.conclusaoRitmo ?? edital.conclusaoPlano) && (edital.conclusaoRitmo ?? edital.conclusaoPlano)! > edital.dataProva;
+  const depoisDaProva = (data: string | null) => !!(data && edital.dataProva && data > edital.dataProva);
+  const planoPassa = depoisDaProva(edital.conclusaoPlano);
+  const ritmoPassa = depoisDaProva(edital.conclusaoRitmo);
+  const passaDaProva = planoPassa || ritmoPassa;
 
   return (
     <section aria-labelledby="edital" className="flex flex-col rounded-xl border bg-card p-5 md:p-6">
@@ -34,12 +36,14 @@ function Edital({ edital, hoje }: { edital: NonNullable<DashboardData["edital"]>
       <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
         <div>
           <dt className="text-muted-foreground">Termina no plano</dt>
-          <dd className="mt-0.5 text-base font-semibold">{edital.conclusaoPlano ? formatarData.longa(edital.conclusaoPlano) : "Sem previsão"}</dd>
+          <dd className={cn("mt-0.5 text-base font-semibold", planoPassa && "text-destructive")}>
+            {edital.conclusaoPlano ? formatarData.longa(edital.conclusaoPlano) : "Sem previsão"}
+          </dd>
         </div>
         <div>
           <dt className="text-muted-foreground">No seu ritmo{ritmoPct !== null ? ` (${ritmoPct}%)` : ""}</dt>
-          <dd className={cn("mt-0.5 text-base font-semibold", passaDaProva && "text-destructive")}>
-            {edital.conclusaoRitmo ? formatarData.longa(edital.conclusaoRitmo) : ritmoPct === null ? "Poucos dias de histórico" : "Sem previsão"}
+          <dd className={cn("mt-0.5 text-base font-semibold", ritmoPassa && "text-destructive", !edital.conclusaoRitmo && "font-normal text-muted-foreground")}>
+            {edital.conclusaoRitmo ? formatarData.longa(edital.conclusaoRitmo) : ritmoPct === null ? "Calcula após 5 dias de estudo" : "Sem previsão"}
           </dd>
         </div>
         <div>
@@ -126,13 +130,14 @@ export function PainelDashboard({ data }: { data: DashboardData }) {
         </div>
         <div className="w-full sm:w-64">
           <div className="mb-1.5 flex items-baseline justify-between text-sm">
-            <span className="text-muted-foreground">Meta do dia</span>
+            <span className="text-muted-foreground">{metaSeg === 0 ? "Hoje é folga" : "Meta do dia"}</span>
             <span className="tabular">
               <span className="font-semibold">{formatarDuracao(data.estudadoHojeSeg)}</span>
-              <span className="text-muted-foreground"> de {formatarDuracao(metaSeg)}</span>
+              {metaSeg > 0 && <span className="text-muted-foreground"> de {formatarDuracao(metaSeg)}</span>}
+              {metaSeg === 0 && <span className="text-muted-foreground"> estudados</span>}
             </span>
           </div>
-          <Progress value={pctMeta} indicatorClassName="bg-highlight" aria-label={`${pctMeta}% da meta do dia`} />
+          {metaSeg > 0 && <Progress value={pctMeta} indicatorClassName="bg-highlight" aria-label={`${pctMeta}% da meta do dia`} />}
         </div>
       </header>
 
