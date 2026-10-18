@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { Skeleton } from "@/components/ui/primitives";
 import { ResolverQuestoes } from "@/features/questoes/resolver-questoes";
+import { carregarDisciplinasComTopicos } from "@/lib/data/flashcards";
 import { type Situacao, carregarQuestoes } from "@/lib/data/questoes";
 
 export const metadata: Metadata = { title: "Questões" };
@@ -36,6 +37,6 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/questoes">
     prova: um(sp.prova),
     situacao: (situacao === "erradas" || situacao === "todas" ? situacao : "nao_resolvidas") as Situacao,
   };
-  const dados = await carregarQuestoes(filtros);
-  return <ResolverQuestoes key={JSON.stringify(filtros)} dados={dados} />;
+  const [dados, opcoesCard] = await Promise.all([carregarQuestoes(filtros), carregarDisciplinasComTopicos()]);
+  return <ResolverQuestoes key={JSON.stringify(filtros)} dados={dados} opcoesCard={opcoesCard} />;
 }

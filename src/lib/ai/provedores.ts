@@ -4,15 +4,20 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { type EditalExtraido, EditalExtraidoSchema } from "./esquema-edital";
+import { type FlashcardsGerados, FlashcardsGeradosSchema } from "./esquema-flashcards";
 import { type ProvaExtraida, ProvaExtraidaSchema } from "./esquema-prova";
 import {
   type DadosQuestaoTutor,
   type OpcoesProva,
   SISTEMA_EDITAL,
+  SISTEMA_FLASHCARDS,
   SISTEMA_PROVA,
+  SISTEMA_TRECHO,
   SISTEMA_TUTOR,
   instrucoesEdital,
+  instrucoesFlashcards,
   instrucoesProva,
+  mensagemTrecho,
   mensagemTutor,
 } from "./prompts";
 
@@ -37,6 +42,8 @@ export interface ProvedorIA {
   /** pdfs[0] = caderno; pdfs[1] = gabarito (opcional) */
   extrairProva(pdfsBase64: string[], opcoes: OpcoesProva): Promise<{ resultado: ProvaExtraida; uso: Uso }>;
   explicarQuestao(q: DadosQuestaoTutor): Promise<{ texto: string; uso: Uso }>;
+  gerarFlashcards(o: { texto: string; quantidade: number; contexto?: string }): Promise<FlashcardsGerados>;
+  explicarTrecho(o: { lei: string; trecho: string; contexto?: string }): Promise<{ texto: string }>;
 }
 
 export class ErroIA extends Error {
@@ -113,6 +120,33 @@ function provedorClaude(): ProvedorIA {
       }
       if (!msg.parsed_output) throw new ErroIA("A IA não devolveu as questões no formato esperado. Tente de novo.");
       return { resultado: msg.parsed_output, uso: { tokensEntrada: msg.usage.input_tokens, tokensSaida: msg.usage.output_tokens } };
+    },
+
+    async explicarTrecho(o) {
+      const msg = await client.messages.create({
+        model: modeloTutor,
+        max_tokens: 1500,
+        system: SISTEMA_TRECHO,
+        messages: [{ role: "user", content: mensagemTrecho(o) }],
+      });
+      return {
+        texto: msg.content
+          .filter((b): b is Anthropic.TextBlock => b.type === "text")
+          .map((b) => b.text)
+          .join("\n"),
+      };
+    },
+
+    async gerarFlashcards(o) {
+      const msg = await client.messages.parse({
+        model: modeloTutor,
+        max_tokens: 4000,
+        system: SISTEMA_FLASHCARDS,
+        messages: [{ role: "user", content: instrucoesFlashcards(o) }],
+        output_config: { format: zodOutputFormat(FlashcardsGeradosSchema) },
+      });
+      if (!msg.parsed_output) throw new ErroIA("A IA não devolveu os cards no formato esperado. Tente de novo.");
+      return msg.parsed_output;
     },
 
     async explicarQuestao(q) {
@@ -209,6 +243,53 @@ function provedorGemini(): ProvedorIA {
         resultado: parsed.data,
         uso: { tokensEntrada: r.usageMetadata?.promptTokenCount ?? null, tokensSaida: r.usageMetadata?.candidatesTokenCount ?? null },
       };
+    },
+
+    async explicarTrecho(o) {
+      const pedir = (model: string) =>
+        ai.models.generateContent({
+          model,
+          contents: mensagemTrecho(o),
+          config: { systemInstruction: SISTEMA_TRECHO, maxOutputTokens: 4000 },
+        });
+      let r;
+      try {
+        r = await pedir(modeloTutor);
+      } catch (e) {
+        if (!limiteAtingido(e) || modeloTutorReserva === modeloTutor) throw e;
+        r = await pedir(modeloTutorReserva);
+      }
+      return { texto: r.text ?? "" };
+    },
+
+    async gerarFlashcards(o) {
+      const pedir = (model: string) =>
+        ai.models.generateContent({
+          model,
+          contents: instrucoesFlashcards(o),
+          config: {
+            systemInstruction: SISTEMA_FLASHCARDS,
+            responseMimeType: "application/json",
+            responseJsonSchema: z.toJSONSchema(FlashcardsGeradosSchema),
+            maxOutputTokens: 8000,
+          },
+        });
+      let r;
+      try {
+        r = await pedir(modeloTutor);
+      } catch (e) {
+        if (!limiteAtingido(e) || modeloTutorReserva === modeloTutor) throw e;
+        r = await pedir(modeloTutorReserva);
+      }
+      let json: unknown;
+      try {
+        json = JSON.parse(r.text ?? "");
+      } catch {
+        throw new ErroIA("A IA devolveu uma resposta incompleta. Tente com um trecho menor.", 422);
+      }
+      const parsed = FlashcardsGeradosSchema.safeParse(json);
+      if (!parsed.success) throw new ErroIA("A IA não devolveu os cards no formato esperado. Tente de novo.");
+      return parsed.data;
     },
 
     async explicarQuestao(q) {

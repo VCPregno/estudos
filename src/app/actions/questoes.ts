@@ -95,7 +95,7 @@ export async function responderQuestao(
   questaoId: string,
   marcada: string,
   tempoSegundos: number | null,
-): Promise<Resultado<{ acertou: boolean; gabarito: string }>> {
+): Promise<Resultado<{ acertou: boolean; gabarito: string; conquistas: { titulo: string; descricao: string }[] }>> {
   if (!z.uuid().safeParse(questaoId).success || !Letra.safeParse(marcada).success) return { ok: false, erro: "Resposta inválida." };
   if (!supabaseConfigurado()) return { ok: false, erro: "demo" };
 
@@ -113,8 +113,9 @@ export async function responderQuestao(
     .insert({ questao_id: questaoId, alternativa_marcada: marcada, acertou, tempo_segundos: tempo });
   if (e2) return { ok: false, erro: `Não deu para salvar a resposta: ${e2.message}` };
 
-  await supabase.rpc("verificar_conquistas");
-  return { ok: true, acertou, gabarito: q.gabarito };
+  const { data: novas } = await supabase.rpc("verificar_conquistas");
+  const conquistas = ((novas ?? []) as { titulo: string; descricao: string }[]).map((c) => ({ titulo: c.titulo, descricao: c.descricao }));
+  return { ok: true, acertou, gabarito: q.gabarito, conquistas };
 }
 
 const Edicao = z.object({

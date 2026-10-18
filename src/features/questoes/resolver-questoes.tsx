@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, FileUp, GraduationCap, ImageOff, Loader2, Scissors, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, FileUp, GalleryVerticalEnd, GraduationCap, ImageOff, Loader2, Scissors, X } from "lucide-react";
 import { toast } from "sonner";
 import { editarQuestao, responderQuestao } from "@/app/actions/questoes";
 import { Button } from "@/components/ui/button";
+import { GerarCards } from "@/features/flashcards/editor-card";
+import type { OpcaoDisciplina } from "@/lib/data/flashcards";
 import type { DadosQuestoes, QuestaoTela, Situacao } from "@/lib/data/questoes";
 import { cn } from "@/lib/utils";
 import { TextoQuestao, TextoSimples } from "./texto-questao";
@@ -25,7 +27,7 @@ interface Resposta {
 
 // =============================================================================
 
-export function ResolverQuestoes({ dados }: { dados: DadosQuestoes }) {
+export function ResolverQuestoes({ dados, opcoesCard }: { dados: DadosQuestoes; opcoesCard: OpcaoDisciplina[] }) {
   const [questoes, setQuestoes] = useState(dados.questoes);
   const [indice, setIndice] = useState(0);
   const [respostas, setRespostas] = useState<Record<string, Resposta>>({});
@@ -103,6 +105,7 @@ export function ResolverQuestoes({ dados }: { dados: DadosQuestoes }) {
                 q={atual}
                 resposta={respostas[atual.id]}
                 demo={dados.modo === "demo"}
+                opcoesCard={opcoesCard}
                 onResponder={(r) => registrar(atual, r)}
                 onAtualizar={(m) => atualizarQuestao(atual.id, m)}
                 onProxima={() => irPara(indice + 1)}
@@ -256,6 +259,7 @@ function CartaoQuestao({
   q,
   resposta,
   demo,
+  opcoesCard,
   onResponder,
   onAtualizar,
   onProxima,
@@ -264,6 +268,7 @@ function CartaoQuestao({
   q: QuestaoTela;
   resposta: Resposta | undefined;
   demo: boolean;
+  opcoesCard: OpcaoDisciplina[];
   onResponder: (r: Resposta) => void;
   onAtualizar: (m: Partial<QuestaoTela>) => void;
   onProxima: () => void;
@@ -297,6 +302,7 @@ function CartaoQuestao({
       return;
     }
     onResponder({ marcada, acertou: r.acertou, gabarito: r.gabarito });
+    for (const c of r.conquistas) toast.success(`Conquista desbloqueada: ${c.titulo}`, { description: c.descricao });
   }, [marcada, respondida, enviando, q, demo, onResponder]);
 
   // Atalhos: A–E marcam, Enter responde/avança.
@@ -432,7 +438,15 @@ function CartaoQuestao({
           <span className="hidden text-xs text-muted-foreground md:inline">Atalhos: letras A a E marcam, Enter responde.</span>
         </div>
       ) : (
-        <Resultado q={q} resposta={resposta} demo={demo} onAtualizar={onAtualizar} onProxima={onProxima} temProxima={temProxima} />
+        <Resultado
+          q={q}
+          resposta={resposta}
+          demo={demo}
+          opcoesCard={opcoesCard}
+          onAtualizar={onAtualizar}
+          onProxima={onProxima}
+          temProxima={temProxima}
+        />
       )}
     </article>
   );
@@ -446,6 +460,7 @@ function Resultado({
   q,
   resposta,
   demo,
+  opcoesCard,
   onAtualizar,
   onProxima,
   temProxima,
@@ -453,6 +468,7 @@ function Resultado({
   q: QuestaoTela;
   resposta: Resposta;
   demo: boolean;
+  opcoesCard: OpcaoDisciplina[];
   onAtualizar: (m: Partial<QuestaoTela>) => void;
   onProxima: () => void;
   temProxima: boolean;
@@ -460,6 +476,7 @@ function Resultado({
   const [explicacao, setExplicacao] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [corrigindo, setCorrigindo] = useState(false);
+  const [criandoCard, setCriandoCard] = useState(false);
 
   async function perguntarAoPontes() {
     setCarregando(true);
@@ -567,6 +584,10 @@ function Resultado({
             {resposta.acertou ? "Explicar com o Pontes" : "Por que errei?"}
           </Button>
         )}
+        <Button variant="outline" onClick={() => setCriandoCard(true)}>
+          <GalleryVerticalEnd />
+          Criar card
+        </Button>
         {temProxima && (
           <Button variant={mostrar || resposta.acertou ? "highlight" : "outline"} onClick={onProxima}>
             Próxima questão
@@ -574,6 +595,32 @@ function Resultado({
           </Button>
         )}
       </div>
+      {criandoCard && (
+        <GerarCards
+          aberto
+          onAberto={setCriandoCard}
+          disciplinas={opcoesCard}
+          demo={demo}
+          questaoId={demo ? undefined : q.id}
+          daQuestao
+          quantidadeInicial={2}
+          classificacao={{ disciplinaId: q.disciplinaId, topicoId: q.topicoId }}
+          contexto={
+            resposta.acertou
+              ? "Questão de concurso que o estudante acertou; o card deve fixar o conceito principal cobrado."
+              : `Questão de concurso que o estudante errou (marcou ${resposta.marcada}, gabarito ${q.gabarito}); o card deve fixar o ponto que causou o erro.`
+          }
+          textoInicial={[
+            q.textoApoio ? `Texto de apoio (resumo): ${q.textoApoio.slice(0, 3000)}` : "",
+            `Enunciado: ${q.enunciado}`,
+            `Alternativas:\n${q.alternativas.map((a) => `${a.letra}) ${a.texto}`).join("\n")}`,
+            `Gabarito: ${q.gabarito}. Marcada: ${resposta.marcada}.`,
+            (explicacao ?? q.explicacao) ? `Explicação do tutor: ${explicacao ?? q.explicacao}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n\n")}
+        />
+      )}
     </div>
   );
 }

@@ -1,14 +1,29 @@
 import type { Metadata } from "next";
-import { EmConstrucao } from "@/components/layout/em-construcao";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { Skeleton } from "@/components/ui/primitives";
+import { ListaLeis } from "@/features/leis/lista-leis";
+import { carregarLeis } from "@/lib/data/leis";
 
 export const metadata: Metadata = { title: "Leis secas" };
 
-export default function Page() {
+export default function LeisPage() {
   return (
-    <EmConstrucao
-      titulo="Leis secas"
-      descricao="Leitor limpo de legislação com marcações coloridas e notas por trecho."
-      pronto="tabelas leis e lei_marcacoes (marcações por posição no texto)."
-    />
+    <Suspense
+      fallback={
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-40" />
+        </div>
+      }
+    >
+      <Conteudo />
+    </Suspense>
   );
+}
+
+async function Conteudo() {
+  await connection();
+  const { modo, leis, disciplinas } = await carregarLeis();
+  return <ListaLeis leis={leis} disciplinas={disciplinas} demo={modo === "demo"} />;
 }

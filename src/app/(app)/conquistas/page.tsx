@@ -1,14 +1,29 @@
 import type { Metadata } from "next";
-import { EmConstrucao } from "@/components/layout/em-construcao";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { Skeleton } from "@/components/ui/primitives";
+import { PainelConquistas } from "@/features/conquistas/painel-conquistas";
+import { carregarConquistas } from "@/lib/data/conquistas";
 
-export const metadata: Metadata = { title: "Minhas conquistas" };
+export const metadata: Metadata = { title: "Conquistas" };
 
-export default function Page() {
+export default function ConquistasPage() {
   return (
-    <EmConstrucao
-      titulo="Minhas conquistas"
-      descricao="Ofensiva diária, recorde e as conquistas desbloqueadas."
-      pronto="catálogo de conquistas, função verificar_conquistas e calcular_ofensiva."
-    />
+    <Suspense
+      fallback={
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-48" />
+        </div>
+      }
+    >
+      <Conteudo />
+    </Suspense>
   );
+}
+
+async function Conteudo() {
+  await connection();
+  return <PainelConquistas dados={await carregarConquistas()} />;
 }
