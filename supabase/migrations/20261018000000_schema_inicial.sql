@@ -847,6 +847,12 @@ $$;
 alter table public.conquistas enable row level security;
 create policy conquistas_leitura on public.conquistas for select to authenticated using (true);
 
+-- Permissões explícitas da Data API: só usuários autenticados (o RLS acima
+-- limita cada um às próprias linhas). Visitantes anônimos não acessam nada.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant execute on all functions in schema public to authenticated;
+
 -- =============================================================================
 -- Storage: buckets privados, um "diretório" por usuário ({uid}/arquivo.pdf)
 -- =============================================================================
