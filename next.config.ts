@@ -1,8 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
+  experimental: {
+    // o PDF do edital passa pelo proxy quando enviado direto (sem Supabase Storage)
+    proxyClientMaxBodySize: "30mb",
+  },
   partialPrefetching: true,
   turbopack: {
     rules: {

@@ -1,0 +1,15 @@
+[
+  {
+    "external_id": "const-art5-xi",
+    "disciplina": "Direito Constitucional",
+    "frente": "Inviolabilidade do domicílio à noite: quando se pode entrar sem consentimento?",
+    "verso": "Flagrante delito, desastre ou para prestar socorro (art. 5º, XI, CF). Ordem judicial só durante o dia.",
+    "tags": ["CF", "direitos fundamentais"]
+  },
+  {
+    "disciplina": "Banco de Dados",
+    "frente": "O que a 3FN elimina?",
+    "verso": "Dependências transitivas: atributo não chave dependendo de outro atributo não chave.",
+    "tags": "normalização; BD"
+  }
+]

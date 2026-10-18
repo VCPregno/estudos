@@ -1,26 +1,162 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/schibsted-grotesk";
 
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Tema "tinta e marca-texto"
+ * Base em azul-tinta (caneta de prova) e um único acento amarelo marca-texto,
+ * reservado para a ação principal (INICIAR) e para a ofensiva.
+ * Cores das disciplinas = paleta categórica validada para daltonismo
+ * (mesma ordem fixa nos dois temas; o escuro tem passos próprios).
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --radius: 0.75rem;
+
+  --background: #eef1f5;
+  --foreground: #141a26;
+  --card: #ffffff;
+  --card-foreground: #141a26;
+  --popover: #ffffff;
+  --popover-foreground: #141a26;
+  --primary: #1c2740;
+  --primary-foreground: #f4f6fa;
+  --secondary: #e4e8ef;
+  --secondary-foreground: #1c2740;
+  --muted: #e9edf3;
+  --muted-foreground: #586377;
+  --accent: #e4e8ef;
+  --accent-foreground: #141a26;
+  --destructive: #c9383a;
+  --border: #dce1e8;
+  --input: #cfd5df;
+  --ring: #1c2740;
+
+  /* marca-texto */
+  --highlight: #f2d54a;
+  --highlight-foreground: #1d1800;
+  --highlight-ink: #8a6d00; /* texto/ícone amarelo legível no claro */
+
+  /* gráficos: certas / erradas */
+  --chart-certas: #2f7fb8;
+  --chart-erradas: #c9583e;
+
+  /* disciplinas */
+  --disc-1: #2a78d6;
+  --disc-2: #eb6834;
+  --disc-3: #1baf7a;
+  --disc-4: #eda100;
+  --disc-5: #e87ba4;
+  --disc-6: #008300;
+  --disc-7: #6250d6;
+  --disc-8: #e34948;
+
+  --sidebar: #e6eaf0;
+}
+
+.dark {
+  --background: #121826;
+  --foreground: #e7eaf0;
+  --card: #182030;
+  --card-foreground: #e7eaf0;
+  --popover: #1d2638;
+  --popover-foreground: #e7eaf0;
+  --primary: #e7eaf0;
+  --primary-foreground: #121826;
+  --secondary: #222b3e;
+  --secondary-foreground: #e7eaf0;
+  --muted: #1f2839;
+  --muted-foreground: #8e99ae;
+  --accent: #253047;
+  --accent-foreground: #e7eaf0;
+  --destructive: #e5605f;
+  --border: #2b354a;
+  --input: #34405a;
+  --ring: #c3cbda;
+
+  --highlight: #f2d54a;
+  --highlight-foreground: #1d1800;
+  --highlight-ink: #f2d54a;
+
+  --chart-certas: #4596ce;
+  --chart-erradas: #db6e52;
+
+  --disc-1: #3987e5;
+  --disc-2: #d95926;
+  --disc-3: #199e70;
+  --disc-4: #c98500;
+  --disc-5: #d55181;
+  --disc-6: #008300;
+  --disc-7: #9085e9;
+  --disc-8: #e66767;
+
+  --sidebar: #0f1420;
 }
 
 @theme inline {
+  --font-sans: "Schibsted Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-highlight-ink: var(--highlight-ink);
+  --color-sidebar: var(--sidebar);
+  --color-chart-certas: var(--chart-certas);
+  --color-chart-erradas: var(--chart-erradas);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--highlight) 70%, transparent);
+    color: var(--highlight-foreground);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
