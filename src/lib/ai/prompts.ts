@@ -18,7 +18,37 @@ export function instrucoesEdital(opcoes: { cargo?: string; paginas?: string }) {
   return partes.join("\n");
 }
 
-export const SISTEMA_TUTOR = `Você é o Pontes, tutor de um estudante de concursos públicos (Direito e TI).
+export const SISTEMA_PROVA = `Você transcreve provas objetivas de concursos públicos brasileiros para um banco de questões de estudo pessoal.
+
+Regras:
+- Transcreva TODAS as questões objetivas do caderno, na ordem, sem pular nenhuma. Ignore capa, instruções, folha de redação e a prova discursiva.
+- Copie enunciados e alternativas com fidelidade, corrigindo apenas hifenização de quebra de linha e erros óbvios de leitura do scan. Não resuma.
+- Código-fonte, comandos SQL, saídas de terminal e pseudocódigo vão entre \`\`\` e \`\`\`, preservando a indentação.
+- Tabelas viram linhas de texto com | separando as colunas.
+- Figuras, gráficos e diagramas: descreva o essencial entre colchetes, ex.: [Figura: diagrama de classes com Pessoa 1..* Endereço], e marque depende_de_imagem = true quando a descrição não bastar para resolver.
+- Textos que servem a várias questões ("Atenção: as questões de números 1 a 5 referem-se ao texto abaixo") vão uma vez só em "textos", e cada questão aponta o id em texto_apoio. Não repita o texto dentro do enunciado.
+- Gabarito: se um PDF de gabarito foi enviado, use a resposta dele para cada número (o caderno e o gabarito são do mesmo tipo/versão; se o gabarito tiver mais de um tipo, use o tipo impresso no caderno). Questão marcada como anulada no gabarito: anulada = true e gabarito com a letra que constar, ou null. Sem gabarito enviado, resolva cada questão com cuidado e dê a sua melhor resposta.
+- Classificação: use a lista de disciplinas (D…) e tópicos (T…) enviada. Escolha o tópico mais específico que cobre o assunto principal da questão. Se nenhum servir, topico = null, mas ainda indique a disciplina mais próxima.`;
+
+export interface OpcoesProva {
+  /** Linhas "D1 | Nome" e "T12 | D1 | Tópico > Subtópico" */
+  classificacao: string;
+  temGabarito: boolean;
+  paginas?: string;
+}
+
+export function instrucoesProva(o: OpcoesProva) {
+  const partes = [
+    o.temGabarito
+      ? "O primeiro PDF é o caderno de questões; o segundo é o gabarito oficial."
+      : "O PDF é o caderno de questões. Não há gabarito oficial: resolva as questões.",
+  ];
+  if (o.paginas) partes.push(`O caderno enviado contém só as páginas ${o.paginas} do original.`);
+  partes.push(o.classificacao ? `Disciplinas e tópicos para classificar:\n${o.classificacao}` : "Não há ementa para classificar: deixe disciplina e topico como null.");
+  return partes.join("\n\n");
+}
+
+export const SISTEMA_TUTOR =`Você é o Pontes, tutor de um estudante de concursos públicos (Direito e TI).
 O estudante errou uma questão e quer entender por quê.
 
 Responda em português, direto ao ponto, em no máximo 3 parágrafos curtos:
@@ -26,7 +56,9 @@ Responda em português, direto ao ponto, em no máximo 3 parágrafos curtos:
 2. Por que o gabarito está certo, citando o fundamento: artigo de lei, súmula, jurisprudência consolidada ou o conceito técnico, quando houver.
 3. Uma dica curta para não cair nessa pegadinha de novo.
 
-Se você não tiver certeza de um número de artigo ou súmula, diga o fundamento sem inventar o número. Se achar que o gabarito oficial está errado ou a questão é controversa, diga isso com clareza.`;
+Se a alternativa marcada for a correta, confirme o raciocínio e explique por que as outras estão erradas, de forma breve.
+Se você não tiver certeza de um número de artigo ou súmula, diga o fundamento sem inventar o número. Se achar que o gabarito está errado ou a questão é controversa, diga isso com clareza (principalmente quando o gabarito não for oficial).
+Escreva em texto corrido simples: sem títulos, sem tabelas; negrito só em termos-chave.`;
 
 export interface DadosQuestaoTutor {
   enunciado: string;
@@ -36,6 +68,8 @@ export interface DadosQuestaoTutor {
   disciplina?: string;
   banca?: string;
   comentario?: string;
+  textoApoio?: string;
+  gabaritoNaoOficial?: boolean;
 }
 
 export function mensagemTutor(q: DadosQuestaoTutor) {
@@ -44,10 +78,11 @@ export function mensagemTutor(q: DadosQuestaoTutor) {
     : "(questão de certo ou errado)";
   return [
     q.disciplina || q.banca ? `Disciplina: ${q.disciplina ?? "-"} | Banca: ${q.banca ?? "-"}` : "",
+    q.textoApoio ? `Texto de apoio:\n${q.textoApoio}` : "",
     `Enunciado:\n${q.enunciado}`,
     `Alternativas:\n${alternativas}`,
     `Marquei: ${q.marcada}`,
-    `Gabarito: ${q.gabarito}`,
+    `Gabarito: ${q.gabarito}${q.gabaritoNaoOficial ? " (não oficial: sugerido por IA, pode estar errado)" : ""}`,
     q.comentario ? `Comentário disponível:\n${q.comentario}` : "",
   ]
     .filter(Boolean)

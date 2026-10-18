@@ -4,7 +4,17 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { type EditalExtraido, EditalExtraidoSchema } from "./esquema-edital";
-import { type DadosQuestaoTutor, SISTEMA_EDITAL, SISTEMA_TUTOR, instrucoesEdital, mensagemTutor } from "./prompts";
+import { type ProvaExtraida, ProvaExtraidaSchema } from "./esquema-prova";
+import {
+  type DadosQuestaoTutor,
+  type OpcoesProva,
+  SISTEMA_EDITAL,
+  SISTEMA_PROVA,
+  SISTEMA_TUTOR,
+  instrucoesEdital,
+  instrucoesProva,
+  mensagemTutor,
+} from "./prompts";
 
 /**
  * Camada de IA com provedor trocável. Claude é o padrão (lê PDF nativamente e
@@ -24,6 +34,8 @@ export interface ProvedorIA {
   modeloEdital: string;
   modeloTutor: string;
   extrairEdital(pdfBase64: string, opcoes: { cargo?: string; paginas?: string }): Promise<{ resultado: EditalExtraido; uso: Uso }>;
+  /** pdfs[0] = caderno; pdfs[1] = gabarito (opcional) */
+  extrairProva(pdfsBase64: string[], opcoes: OpcoesProva): Promise<{ resultado: ProvaExtraida; uso: Uso }>;
   explicarQuestao(q: DadosQuestaoTutor): Promise<{ texto: string; uso: Uso }>;
 }
 
@@ -79,6 +91,30 @@ function provedorClaude(): ProvedorIA {
       };
     },
 
+    async extrairProva(pdfs, opcoes) {
+      const stream = client.messages.stream({
+        model: modeloEdital,
+        max_tokens: 64000,
+        system: SISTEMA_PROVA,
+        messages: [
+          {
+            role: "user",
+            content: [
+              ...pdfs.map((data) => ({ type: "document" as const, source: { type: "base64" as const, media_type: "application/pdf" as const, data } })),
+              { type: "text", text: instrucoesProva(opcoes) },
+            ],
+          },
+        ],
+        output_config: { format: zodOutputFormat(ProvaExtraidaSchema) },
+      });
+      const msg = await stream.finalMessage();
+      if (msg.stop_reason === "max_tokens") {
+        throw new ErroIA("A prova é longa demais para uma leitura só. Importe em partes, informando um intervalo de páginas.", 422);
+      }
+      if (!msg.parsed_output) throw new ErroIA("A IA não devolveu as questões no formato esperado. Tente de novo.");
+      return { resultado: msg.parsed_output, uso: { tokensEntrada: msg.usage.input_tokens, tokensSaida: msg.usage.output_tokens } };
+    },
+
     async explicarQuestao(q) {
       const msg = await client.messages.create({
         model: modeloTutor,
@@ -102,7 +138,10 @@ function provedorClaude(): ProvedorIA {
 function provedorGemini(): ProvedorIA {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const modeloEdital = modeloEditalDe("gemini");
-  const modeloTutor = process.env.GEMINI_MODEL_TUTOR || "gemini-3.5-flash-lite";
+  // O tutor precisa acertar o raciocínio; o lite fica de reserva para quando o
+  // limite gratuito do modelo principal acabar.
+  const modeloTutor = process.env.GEMINI_MODEL_TUTOR || "gemini-3.8-flash";
+  const modeloTutorReserva = process.env.GEMINI_MODEL_TUTOR_RESERVA || "gemini-3.5-flash-lite";
 
   return {
     nome: "gemini",
@@ -142,12 +181,50 @@ function provedorGemini(): ProvedorIA {
       };
     },
 
-    async explicarQuestao(q) {
+    async extrairProva(pdfs, opcoes) {
       const r = await ai.models.generateContent({
-        model: modeloTutor,
-        contents: mensagemTutor(q),
-        config: { systemInstruction: SISTEMA_TUTOR, maxOutputTokens: 1500 },
+        model: modeloEdital,
+        contents: [
+          {
+            role: "user",
+            parts: [...pdfs.map((data) => ({ inlineData: { mimeType: "application/pdf", data } })), { text: instrucoesProva(opcoes) }],
+          },
+        ],
+        config: {
+          systemInstruction: SISTEMA_PROVA,
+          responseMimeType: "application/json",
+          responseJsonSchema: z.toJSONSchema(ProvaExtraidaSchema),
+          maxOutputTokens: 65536,
+        },
       });
+      let json: unknown;
+      try {
+        json = JSON.parse(r.text ?? "");
+      } catch {
+        throw new ErroIA("A IA devolveu uma resposta incompleta. Importe a prova em partes, informando um intervalo de páginas.", 422);
+      }
+      const parsed = ProvaExtraidaSchema.safeParse(json);
+      if (!parsed.success) throw new ErroIA("A IA não devolveu as questões no formato esperado. Tente de novo.");
+      return {
+        resultado: parsed.data,
+        uso: { tokensEntrada: r.usageMetadata?.promptTokenCount ?? null, tokensSaida: r.usageMetadata?.candidatesTokenCount ?? null },
+      };
+    },
+
+    async explicarQuestao(q) {
+      const pedir = (model: string) =>
+        ai.models.generateContent({
+          model,
+          contents: mensagemTutor(q),
+          config: { systemInstruction: SISTEMA_TUTOR, maxOutputTokens: 4000 },
+        });
+      let r;
+      try {
+        r = await pedir(modeloTutor);
+      } catch (e) {
+        if (!limiteAtingido(e) || modeloTutorReserva === modeloTutor) throw e;
+        r = await pedir(modeloTutorReserva);
+      }
       return {
         texto: r.text ?? "",
         uso: {
@@ -160,6 +237,11 @@ function provedorGemini(): ProvedorIA {
 }
 
 // -----------------------------------------------------------------------------
+
+function limiteAtingido(e: unknown) {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /429|RESOURCE_EXHAUSTED|quota/i.test(msg);
+}
 
 export function modeloEditalDe(nome: NomeProvedor): string {
   return nome === "claude"
@@ -196,6 +278,9 @@ export function mensagemDeErro(e: unknown): { mensagem: string; status: number }
     if (e.status === 413 || /too large|pages/i.test(e.message))
       return { mensagem: "PDF grande demais para a IA. Envie só as páginas do conteúdo programático.", status: 413 };
     return { mensagem: `Erro da API da Anthropic: ${e.message}`, status: 502 };
+  }
+  if (limiteAtingido(e)) {
+    return { mensagem: "O limite gratuito da IA acabou por agora. Espere alguns minutos (ou até amanhã) e tente de novo.", status: 429 };
   }
   const msg = e instanceof Error ? e.message : String(e);
   return { mensagem: `Falha ao consultar a IA: ${msg}`, status: 502 };

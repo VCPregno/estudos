@@ -15,12 +15,14 @@ const Corpo = z.object({
   disciplina: z.string().max(200).optional(),
   banca: z.string().max(100).optional(),
   comentario: z.string().max(20000).optional(),
+  textoApoio: z.string().max(30000).optional(),
+  gabaritoNaoOficial: z.boolean().optional(),
 });
 
 /**
  * POST /api/tutor — Tutor "Pontes": explica por que a alternativa marcada está
- * errada e por que o gabarito está certo. Base para o botão flutuante do
- * Banco de Questões (próximo passo).
+ * errada e por que o gabarito está certo. A explicação fica salva junto da
+ * questão para aparecer de novo quando ela voltar.
  */
 export async function POST(request: Request) {
   const corpo = Corpo.safeParse(await request.json().catch(() => null));
