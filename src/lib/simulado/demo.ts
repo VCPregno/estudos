@@ -1,0 +1,73 @@
+/** Caderno de exemplo para o modo demonstração (sem Supabase). Aqui o gabarito pode ir ao navegador. */
+export const PROVA_DEMO = "Prova de exemplo · 4 questões";
+
+export const QUESTOES_DEMO = [
+  {
+    id: "00000000-0000-4000-8000-000000000001",
+    numero: 1,
+    prova: PROVA_DEMO,
+    disciplina: "Tecnologia da Informação",
+    textoApoio: null,
+    enunciado: "Em um banco de dados relacional, a propriedade que garante que uma transação seja executada por completo ou não seja executada é a",
+    alternativas: [
+      { letra: "A", texto: "consistência." },
+      { letra: "B", texto: "atomicidade." },
+      { letra: "C", texto: "durabilidade." },
+      { letra: "D", texto: "isolamento." },
+      { letra: "E", texto: "integridade referencial." },
+    ],
+    dependeDeImagem: false,
+    gabarito: "B",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000002",
+    numero: 2,
+    prova: PROVA_DEMO,
+    disciplina: "Tecnologia da Informação",
+    textoApoio: null,
+    enunciado: "No protocolo HTTP, o código de status que indica que o recurso solicitado não foi encontrado no servidor é o",
+    alternativas: [
+      { letra: "A", texto: "200." },
+      { letra: "B", texto: "301." },
+      { letra: "C", texto: "403." },
+      { letra: "D", texto: "404." },
+      { letra: "E", texto: "500." },
+    ],
+    dependeDeImagem: false,
+    gabarito: "D",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000003",
+    numero: 3,
+    prova: PROVA_DEMO,
+    disciplina: "Língua Portuguesa",
+    textoApoio: null,
+    enunciado: "Está correta a concordância verbal em:",
+    alternativas: [
+      { letra: "A", texto: "Fazem dois anos que estudo para concursos." },
+      { letra: "B", texto: "Houveram muitas questões anuladas." },
+      { letra: "C", texto: "Faz dois anos que estudo para concursos." },
+      { letra: "D", texto: "Existe muitas maneiras de revisar." },
+      { letra: "E", texto: "Haviam candidatos atrasados." },
+    ],
+    dependeDeImagem: false,
+    gabarito: "C",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000004",
+    numero: 4,
+    prova: PROVA_DEMO,
+    disciplina: "Língua Portuguesa",
+    textoApoio: null,
+    enunciado: "A palavra acentuada pela mesma regra de “ninguém” é:",
+    alternativas: [
+      { letra: "A", texto: "também." },
+      { letra: "B", texto: "café." },
+      { letra: "C", texto: "lâmpada." },
+      { letra: "D", texto: "saúde." },
+      { letra: "E", texto: "difícil." },
+    ],
+    dependeDeImagem: false,
+    gabarito: "A",
+  },
+];

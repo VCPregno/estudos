@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, FileUp, GalleryVerticalEnd, GraduationCap, ImageOff, Loader2, Scissors, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, FileUp, GalleryVerticalEnd, GraduationCap, ImageOff, Loader2, Scissors, Timer, X } from "lucide-react";
 import { toast } from "sonner";
 import { editarQuestao, responderQuestao } from "@/app/actions/questoes";
 import { Button } from "@/components/ui/button";
@@ -76,12 +76,22 @@ export function ResolverQuestoes({ dados, opcoesCard }: { dados: DadosQuestoes; 
             </p>
           )}
         </div>
-        <Button asChild variant="outline">
-          <Link href="/questoes/importar">
-            <FileUp />
-            Importar prova
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {!semNada && (
+            <Button asChild variant="outline">
+              <Link href="/simulados">
+                <Timer />
+                Simulado
+              </Link>
+            </Button>
+          )}
+          <Button asChild variant="outline">
+            <Link href="/questoes/importar">
+              <FileUp />
+              Importar prova
+            </Link>
+          </Button>
+        </div>
       </header>
 
       {semNada ? (

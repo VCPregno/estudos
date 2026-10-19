@@ -17,6 +17,7 @@ import {
   Scale,
   Sun,
   TableProperties,
+  Timer,
   Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 export const ITENS_NAV = [
   { href: "/", rotulo: "Meu Dia", icone: Sun, mobile: true },
   { href: "/questoes", rotulo: "Questões", icone: ListChecks, mobile: true },
+  { href: "/simulados", rotulo: "Simulados", icone: Timer, mobile: false },
   { href: "/flashcards", rotulo: "Flashcards", icone: GalleryVerticalEnd, mobile: false },
   { href: "/leis", rotulo: "Leis secas", icone: Scale, mobile: false },
   { href: "/redacao", rotulo: "Redação", icone: PenLine, mobile: false },
