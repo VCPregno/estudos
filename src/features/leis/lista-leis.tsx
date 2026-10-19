@@ -25,9 +25,27 @@ const SUGESTOES = [
   { titulo: "Abuso de autoridade (Lei 13.869/2019)", sigla: "Lei 13.869/19", url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2019/lei/l13869.htm" },
 ];
 
-export function ListaLeis({ leis, disciplinas, demo }: { leis: LeiResumo[]; disciplinas: OpcaoDisciplina[]; demo: boolean }) {
-  const [aberto, setAberto] = useState(false);
-  const [inicial, setInicial] = useState<{ titulo: string; sigla: string; url: string } | null>(null);
+/** Vindo da Ementa (?nova=Lei 9.784/1999): reaproveita o link conhecido, se houver. */
+function inicialDe(nova: string | undefined) {
+  if (!nova) return null;
+  const numero = nova.match(/\d{1,3}(?:\.\d{3})+|\d{4,}/)?.[0];
+  const conhecida = numero ? SUGESTOES.find((s) => s.titulo.includes(numero)) : SUGESTOES.find((s) => s.titulo.toLowerCase().includes(nova.toLowerCase()));
+  return conhecida ? { titulo: conhecida.titulo, sigla: conhecida.sigla, url: conhecida.url } : { titulo: nova, sigla: "", url: "" };
+}
+
+export function ListaLeis({
+  leis,
+  disciplinas,
+  demo,
+  nova,
+}: {
+  leis: LeiResumo[];
+  disciplinas: OpcaoDisciplina[];
+  demo: boolean;
+  nova?: string;
+}) {
+  const [aberto, setAberto] = useState(!!nova && !demo);
+  const [inicial, setInicial] = useState<{ titulo: string; sigla: string; url: string } | null>(() => inicialDe(nova));
 
   function adicionar(s?: (typeof SUGESTOES)[number]) {
     setInicial(s ? { titulo: s.titulo, sigla: s.sigla, url: s.url } : null);

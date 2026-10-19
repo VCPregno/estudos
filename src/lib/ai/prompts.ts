@@ -121,3 +121,23 @@ Não invente número de artigo, súmula ou julgado. Se não tiver certeza, diga 
 export function mensagemTrecho(o: { lei: string; trecho: string; contexto?: string }) {
   return [`Lei: ${o.lei}`, o.contexto ? `Contexto ao redor:\n${o.contexto}` : "", `Trecho grifado:\n${o.trecho}`].filter(Boolean).join("\n\n");
 }
+
+export const SISTEMA_FONTES = `Você ajuda um estudante de concursos públicos a saber onde estudar cada tópico do edital.
+
+Classifique cada tópico em um tipo:
+- "norma": lei, decreto, resolução, portaria, regimento interno, súmula ou outro ato normativo. Também conta quando o tópico é um instituto definido quase todo por um ato específico (ex.: "Processo administrativo federal" → Lei 9.784/1999).
+- "guia": guia, framework, norma técnica ou manual com documento próprio e versão (Scrum Guide, PMBOK, ITIL, COBIT, ISO/IEC, ABNT NBR, OWASP, Manual de Redação da Presidência).
+- "classica": matéria sem texto oficial, estudada por livro, curso ou doutrina (gramática, matemática, lógica, doutrina jurídica, redes, sistemas operacionais, banco de dados, programação).
+- "orgao": sistemas, programas, estrutura ou realidade do próprio órgão ou região (PDPJ-Br, realidade do estado, estrutura do tribunal).
+
+Em "fonte", diga onde estudar em até 120 caracteres, sem links:
+- norma: o nome oficial do ato e onde está o texto (ex.: "Lei 9.784/1999 — texto compilado no Planalto"; "Resolução CNJ 400/2021 — site do CNJ"; "Regimento Interno — site do tribunal"). Se o tópico cita artigos, inclua-os.
+- guia: o documento, a versão do edital e se é gratuito (ex.: "Guia do Scrum 2020 — gratuito em scrumguides.org"; "PMBOK 8ª ed. — pago; usar resumo e questões").
+- classica: o tipo de material e o recorte que a banca cobra (ex.: "Material-base de português; foco em regras de crase e exceções").
+- orgao: o site ou documento do órgão (ex.: "Cartilha e atos do CNJ sobre a PDPJ-Br").
+Nunca invente número de lei, artigo ou versão que não esteja no tópico ou que você não tenha certeza; nesse caso descreva sem o número.
+Devolva um item para cada chave recebida.`;
+
+export function instrucoesFontes(o: { contexto: string; itens: { chave: string; disciplina: string; titulo: string }[] }) {
+  return [`Concurso: ${o.contexto}`, "Tópicos:", ...o.itens.map((i) => `${i.chave} | ${i.disciplina} | ${i.titulo}`)].join("\n");
+}

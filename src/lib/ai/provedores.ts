@@ -5,17 +5,20 @@ import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { type EditalExtraido, EditalExtraidoSchema } from "./esquema-edital";
 import { type FlashcardsGerados, FlashcardsGeradosSchema } from "./esquema-flashcards";
+import { type FontesClassificadas, FontesClassificadasSchema } from "./esquema-fontes";
 import { type ProvaExtraida, ProvaExtraidaSchema } from "./esquema-prova";
 import {
   type DadosQuestaoTutor,
   type OpcoesProva,
   SISTEMA_EDITAL,
   SISTEMA_FLASHCARDS,
+  SISTEMA_FONTES,
   SISTEMA_PROVA,
   SISTEMA_TRECHO,
   SISTEMA_TUTOR,
   instrucoesEdital,
   instrucoesFlashcards,
+  instrucoesFontes,
   instrucoesProva,
   mensagemTrecho,
   mensagemTutor,
@@ -44,6 +47,7 @@ export interface ProvedorIA {
   explicarQuestao(q: DadosQuestaoTutor): Promise<{ texto: string; uso: Uso }>;
   gerarFlashcards(o: { texto: string; quantidade: number; contexto?: string }): Promise<FlashcardsGerados>;
   explicarTrecho(o: { lei: string; trecho: string; contexto?: string }): Promise<{ texto: string }>;
+  classificarFontes(o: { contexto: string; itens: { chave: string; disciplina: string; titulo: string }[] }): Promise<FontesClassificadas>;
 }
 
 export class ErroIA extends Error {
@@ -120,6 +124,18 @@ function provedorClaude(): ProvedorIA {
       }
       if (!msg.parsed_output) throw new ErroIA("A IA não devolveu as questões no formato esperado. Tente de novo.");
       return { resultado: msg.parsed_output, uso: { tokensEntrada: msg.usage.input_tokens, tokensSaida: msg.usage.output_tokens } };
+    },
+
+    async classificarFontes(o) {
+      const msg = await client.messages.parse({
+        model: modeloTutor,
+        max_tokens: 16000,
+        system: SISTEMA_FONTES,
+        messages: [{ role: "user", content: instrucoesFontes(o) }],
+        output_config: { format: zodOutputFormat(FontesClassificadasSchema) },
+      });
+      if (!msg.parsed_output) throw new ErroIA("A IA não devolveu a classificação no formato esperado. Tente de novo.");
+      return msg.parsed_output;
     },
 
     async explicarTrecho(o) {
@@ -243,6 +259,36 @@ function provedorGemini(): ProvedorIA {
         resultado: parsed.data,
         uso: { tokensEntrada: r.usageMetadata?.promptTokenCount ?? null, tokensSaida: r.usageMetadata?.candidatesTokenCount ?? null },
       };
+    },
+
+    async classificarFontes(o) {
+      const pedir = (model: string) =>
+        ai.models.generateContent({
+          model,
+          contents: instrucoesFontes(o),
+          config: {
+            systemInstruction: SISTEMA_FONTES,
+            responseMimeType: "application/json",
+            responseJsonSchema: z.toJSONSchema(FontesClassificadasSchema),
+            maxOutputTokens: 32000,
+          },
+        });
+      let r;
+      try {
+        r = await pedir(modeloTutor);
+      } catch (e) {
+        if (!limiteAtingido(e) || modeloTutorReserva === modeloTutor) throw e;
+        r = await pedir(modeloTutorReserva);
+      }
+      let json: unknown;
+      try {
+        json = JSON.parse(r.text ?? "");
+      } catch {
+        throw new ErroIA("A IA devolveu uma resposta incompleta. Tente de novo.", 422);
+      }
+      const parsed = FontesClassificadasSchema.safeParse(json);
+      if (!parsed.success) throw new ErroIA("A IA não devolveu a classificação no formato esperado. Tente de novo.");
+      return parsed.data;
     },
 
     async explicarTrecho(o) {

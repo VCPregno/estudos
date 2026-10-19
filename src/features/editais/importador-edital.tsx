@@ -619,7 +619,21 @@ function LinhaTopico({
 // 4. Pronto
 // =============================================================================
 
-function EtapaPronto({ demo, nome, onNovo }: { editalId: string | null; demo: boolean; nome: string; onNovo: () => void }) {
+function EtapaPronto({ editalId, demo, nome, onNovo }: { editalId: string | null; demo: boolean; nome: string; onNovo: () => void }) {
+  const [fontes, setFontes] = useState<"lendo" | "pronto" | "erro" | null>(editalId && !demo ? "lendo" : null);
+
+  // Já classifica os tópicos por tipo de fonte, em segundo plano.
+  useEffect(() => {
+    if (!editalId || demo) return;
+    let vivo = true;
+    fetch("/api/ementa/fontes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ editalId }) })
+      .then((r) => vivo && setFontes(r.ok ? "pronto" : "erro"))
+      .catch(() => vivo && setFontes("erro"));
+    return () => {
+      vivo = false;
+    };
+  }, [editalId, demo]);
+
   return (
     <div className="rounded-xl border bg-card px-6 py-12 text-center">
       <h1 className="text-2xl font-semibold tracking-tight">{demo ? "Revisão concluída" : "Edital importado"}</h1>
@@ -628,6 +642,16 @@ function EtapaPronto({ demo, nome, onNovo }: { editalId: string | null; demo: bo
           ? "No modo demonstração nada é gravado. Configure o Supabase para guardar a ementa."
           : `As disciplinas e os tópicos de "${nome}" já estão na sua ementa. O próximo passo é montar o ciclo de estudos.`}
       </p>
+      {fontes && (
+        <p className="mx-auto mt-3 flex max-w-md items-center justify-center gap-2 text-sm text-muted-foreground" aria-live="polite">
+          {fontes === "lendo" && <Loader2 className="size-4 animate-spin" />}
+          {fontes === "lendo"
+            ? "A IA está marcando onde estudar cada tópico…"
+            : fontes === "pronto"
+              ? "Cada tópico já tem o tipo de fonte e onde estudar, na Ementa."
+              : "Não deu para marcar as fontes agora; use o botão na Ementa."}
+        </p>
+      )}
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {!demo && (
           <Button asChild variant="highlight">

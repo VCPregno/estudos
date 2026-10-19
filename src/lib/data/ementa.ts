@@ -7,8 +7,11 @@ import { carregarCicloAtivo } from "./dashboard";
 import { entradaDemo } from "./demo";
 import { indiceDeCor } from "./painel";
 
+export type TipoFonte = "norma" | "guia" | "classica" | "orgao";
+
 export interface LinhaEmenta {
   id: string;
+  disciplinaId: string;
   parentId: string | null;
   codigo: string | null;
   titulo: string;
@@ -19,6 +22,10 @@ export interface LinhaEmenta {
   proximaRevisao: DataISO | null;
   questoes: number;
   aproveitamento: number | null;
+  tipoFonte: TipoFonte | null;
+  fonte: string | null;
+  /** questões do banco ligadas ao tópico (resolvidas ou não) */
+  questoesBanco: number;
 }
 
 export interface TopicoEmenta extends LinhaEmenta {
@@ -55,11 +62,15 @@ interface LinhaView {
   proxima_revisao: string | null;
   questoes_resolvidas: number;
   aproveitamento: number | null;
+  tipo_fonte: TipoFonte | null;
+  fonte: string | null;
+  questoes_banco: number;
 }
 
 function montarArvore(linhas: LinhaView[], ordemDisciplinas: { id: string; nome: string; cor: number }[]): DisciplinaEmenta[] {
   const paraLinha = (l: LinhaView): LinhaEmenta => ({
     id: l.id,
+    disciplinaId: l.disciplina_id,
     parentId: l.parent_id,
     codigo: l.codigo,
     titulo: l.titulo,
@@ -70,6 +81,9 @@ function montarArvore(linhas: LinhaView[], ordemDisciplinas: { id: string; nome:
     proximaRevisao: l.proxima_revisao,
     questoes: Number(l.questoes_resolvidas),
     aproveitamento: l.aproveitamento === null ? null : Number(l.aproveitamento),
+    tipoFonte: l.tipo_fonte,
+    fonte: l.fonte,
+    questoesBanco: Number(l.questoes_banco ?? 0),
   });
   const filhos = new Map<string, LinhaEmenta[]>();
   for (const l of linhas) {
@@ -106,6 +120,9 @@ function dadosDemo(hoje: DataISO): DadosEmenta {
       proxima_revisao: t.teoriaConcluida ? somarDias(hoje, 1 + (i % 9)) : null,
       questoes_resolvidas: questoes,
       aproveitamento: questoes ? 55 + ((i * 13) % 40) : null,
+      tipo_fonte: (["norma", "classica", "guia", "classica", "orgao"] as const)[i % 5],
+      fonte: ["Lei 9.784/1999 — texto compilado no Planalto", "Material-base da disciplina; foco no que a banca cobra", "Guia do Scrum 2020 — gratuito em scrumguides.org", "Livro-texto ou aula aberta do tópico", "Site do órgão: cartilhas e atos normativos"][i % 5],
+      questoes_banco: questoes ? questoes + 5 : 0,
     };
   });
   const minutosPorData = Object.fromEntries(e.progresso.map((p) => [p.dia, Math.round(p.segundos / 60)]));
@@ -144,7 +161,7 @@ export async function carregarEmenta(editalPedido?: string): Promise<DadosEmenta
     supabase
       .from("v_ementa")
       .select(
-        "id, disciplina_id, disciplina, parent_id, codigo, titulo, ordem, teoria_concluida, revisoes_feitas, revisoes_total, proxima_revisao, questoes_resolvidas, aproveitamento",
+        "id, disciplina_id, disciplina, parent_id, codigo, titulo, ordem, teoria_concluida, revisoes_feitas, revisoes_total, proxima_revisao, questoes_resolvidas, aproveitamento, tipo_fonte, fonte, questoes_banco",
       )
       .eq("edital_id", escolhido.id),
     supabase
