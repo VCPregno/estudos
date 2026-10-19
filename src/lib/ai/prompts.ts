@@ -128,7 +128,8 @@ Classifique cada tópico em um tipo:
 - "norma": lei, decreto, resolução, portaria, regimento interno, súmula ou outro ato normativo. Também conta quando o tópico é um instituto definido quase todo por um ato específico (ex.: "Processo administrativo federal" → Lei 9.784/1999).
 - "guia": guia, framework, norma técnica ou manual com documento próprio e versão (Scrum Guide, PMBOK, ITIL, COBIT, ISO/IEC, ABNT NBR, OWASP, Manual de Redação da Presidência).
 - "classica": matéria sem texto oficial, estudada por livro, curso ou doutrina (gramática, matemática, lógica, doutrina jurídica, redes, sistemas operacionais, banco de dados, programação).
-- "orgao": sistemas, programas, estrutura ou realidade do próprio órgão ou região (PDPJ-Br, realidade do estado, estrutura do tribunal).
+- "orgao": só o que existe apenas naquele órgão ou região: o próprio sistema ou programa como um todo, seus normativos internos, sua estrutura, a realidade do estado (ex.: "Normativos da PDPJ-Br", "Estrutura do TRT").
+Atenção: tecnologias, linguagens, frameworks e protocolos listados dentro de um bloco sobre um sistema do órgão (ex.: "PDPJ-Br > Java", "PDPJ-Br > API RESTful", "PDPJ-Br > Docker") NÃO são "orgao": são "classica", ou "guia" quando têm especificação própria (ex.: OAuth 2.0 na RFC 6749). Na fonte, cite o padrão geral e, se fizer sentido, como o órgão usa.
 
 Em "fonte", diga onde estudar em até 120 caracteres, sem links:
 - norma: o nome oficial do ato e onde está o texto (ex.: "Lei 9.784/1999 — texto compilado no Planalto"; "Resolução CNJ 400/2021 — site do CNJ"; "Regimento Interno — site do tribunal"). Se o tópico cita artigos, inclua-os.
