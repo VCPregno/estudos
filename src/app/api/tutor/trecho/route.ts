@@ -13,7 +13,7 @@ const Corpo = z.object({
   contexto: z.string().max(8000).optional(),
 });
 
-/** POST /api/tutor/trecho — o Pontes explica um trecho grifado de lei. */
+/** POST /api/tutor/trecho — o Campos explica um trecho grifado de lei. */
 export async function POST(request: Request) {
   const corpo = Corpo.safeParse(await request.json().catch(() => null));
   if (!corpo.success) return NextResponse.json({ erro: "Requisição inválida." }, { status: 400 });

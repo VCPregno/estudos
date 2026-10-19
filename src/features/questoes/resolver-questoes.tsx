@@ -453,7 +453,7 @@ function CartaoQuestao({
 }
 
 // =============================================================================
-// Resultado + Pontes
+// Resultado + Campos
 // =============================================================================
 
 function Resultado({
@@ -478,7 +478,7 @@ function Resultado({
   const [corrigindo, setCorrigindo] = useState(false);
   const [criandoCard, setCriandoCard] = useState(false);
 
-  async function perguntarAoPontes() {
+  async function perguntarAoCampos() {
     setCarregando(true);
     try {
       const r = await fetch("/api/tutor", {
@@ -497,7 +497,7 @@ function Resultado({
         }),
       });
       const json = await r.json().catch(() => ({ erro: "Resposta inválida do servidor." }));
-      if (!r.ok) throw new Error(json.erro ?? "O Pontes não conseguiu responder.");
+      if (!r.ok) throw new Error(json.erro ?? "O Campos não conseguiu responder.");
       setExplicacao(json.texto);
       onAtualizar({ explicacao: json.texto });
     } catch (e) {
@@ -564,7 +564,7 @@ function Resultado({
         <section aria-live="polite" className="rounded-lg border bg-background/60 p-4 text-[15px] leading-relaxed">
           <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
             <GraduationCap className="size-4 text-highlight-ink" />
-            Pontes
+            Campos
           </p>
           {carregando ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -579,9 +579,9 @@ function Resultado({
 
       <div className="flex flex-wrap items-center gap-3">
         {!mostrar && !carregando && (
-          <Button variant={resposta.acertou ? "outline" : "highlight"} onClick={() => (salva ? setExplicacao(salva) : perguntarAoPontes())}>
+          <Button variant={resposta.acertou ? "outline" : "highlight"} onClick={() => (salva ? setExplicacao(salva) : perguntarAoCampos())}>
             <GraduationCap />
-            {resposta.acertou ? "Explicar com o Pontes" : "Por que errei?"}
+            {resposta.acertou ? "Explicar com o Campos" : "Por que errei?"}
           </Button>
         )}
         <Button variant="outline" onClick={() => setCriandoCard(true)}>

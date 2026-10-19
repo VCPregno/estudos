@@ -60,7 +60,7 @@ export function ListaLeis({
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Leis secas</h1>
           <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-            O texto oficial, sem os trechos revogados, para ler, grifar e anotar. Grife um trecho para pedir a explicação do Pontes ou virar flashcard.
+            O texto oficial, sem os trechos revogados, para ler, grifar e anotar. Grife um trecho para pedir a explicação do Campos ou virar flashcard.
           </p>
         </div>
         <Button variant="highlight" onClick={() => adicionar()} disabled={demo}>

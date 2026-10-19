@@ -20,7 +20,7 @@ const Corpo = z.object({
 });
 
 /**
- * POST /api/tutor — Tutor "Pontes": explica por que a alternativa marcada está
+ * POST /api/tutor — Tutor "Campos": explica por que a alternativa marcada está
  * errada e por que o gabarito está certo. A explicação fica salva junto da
  * questão para aparecer de novo quando ela voltar.
  */

@@ -7,6 +7,7 @@ import { type EditalExtraido, EditalExtraidoSchema } from "./esquema-edital";
 import { type FlashcardsGerados, FlashcardsGeradosSchema } from "./esquema-flashcards";
 import { type FontesClassificadas, FontesClassificadasSchema } from "./esquema-fontes";
 import { type ProvaExtraida, ProvaExtraidaSchema } from "./esquema-prova";
+import { type CorrecaoRedacao, CorrecaoRedacaoSchema, type TemaSugerido, TemaSugeridoSchema } from "./esquema-redacao";
 import {
   type DadosQuestaoTutor,
   type OpcoesProva,
@@ -14,12 +15,15 @@ import {
   SISTEMA_FLASHCARDS,
   SISTEMA_FONTES,
   SISTEMA_PROVA,
+  SISTEMA_REDACAO,
+  SISTEMA_TEMA,
   SISTEMA_TRECHO,
   SISTEMA_TUTOR,
   instrucoesEdital,
   instrucoesFlashcards,
   instrucoesFontes,
   instrucoesProva,
+  instrucoesRedacao,
   mensagemTrecho,
   mensagemTutor,
 } from "./prompts";
@@ -48,6 +52,8 @@ export interface ProvedorIA {
   gerarFlashcards(o: { texto: string; quantidade: number; contexto?: string }): Promise<FlashcardsGerados>;
   explicarTrecho(o: { lei: string; trecho: string; contexto?: string }): Promise<{ texto: string }>;
   classificarFontes(o: { contexto: string; itens: { chave: string; disciplina: string; titulo: string }[] }): Promise<FontesClassificadas>;
+  corrigirRedacao(o: Parameters<typeof instrucoesRedacao>[0] & { imagens: { mime: string; data: string }[] }): Promise<CorrecaoRedacao>;
+  sugerirTema(o: { banca: string }): Promise<TemaSugerido>;
 }
 
 export class ErroIA extends Error {
@@ -124,6 +130,41 @@ function provedorClaude(): ProvedorIA {
       }
       if (!msg.parsed_output) throw new ErroIA("A IA não devolveu as questões no formato esperado. Tente de novo.");
       return { resultado: msg.parsed_output, uso: { tokensEntrada: msg.usage.input_tokens, tokensSaida: msg.usage.output_tokens } };
+    },
+
+    async corrigirRedacao(o) {
+      const msg = await client.messages.parse({
+        model: modeloEdital,
+        max_tokens: 16000,
+        system: SISTEMA_REDACAO,
+        messages: [
+          {
+            role: "user",
+            content: [
+              ...o.imagens.map((i) => ({
+                type: "image" as const,
+                source: { type: "base64" as const, media_type: i.mime as "image/jpeg", data: i.data },
+              })),
+              { type: "text" as const, text: instrucoesRedacao(o) },
+            ],
+          },
+        ],
+        output_config: { format: zodOutputFormat(CorrecaoRedacaoSchema) },
+      });
+      if (!msg.parsed_output) throw new ErroIA("A IA não devolveu a correção no formato esperado. Tente de novo.");
+      return msg.parsed_output;
+    },
+
+    async sugerirTema(o) {
+      const msg = await client.messages.parse({
+        model: modeloTutor,
+        max_tokens: 2000,
+        system: SISTEMA_TEMA,
+        messages: [{ role: "user", content: `Banca: ${o.banca}. Crie uma proposta.` }],
+        output_config: { format: zodOutputFormat(TemaSugeridoSchema) },
+      });
+      if (!msg.parsed_output) throw new ErroIA("A IA não devolveu o tema no formato esperado.");
+      return msg.parsed_output;
     },
 
     async classificarFontes(o) {
@@ -277,6 +318,53 @@ function provedorGemini(): ProvedorIA {
         resultado: parsed.data,
         uso: { tokensEntrada: r.usageMetadata?.promptTokenCount ?? null, tokensSaida: r.usageMetadata?.candidatesTokenCount ?? null },
       };
+    },
+
+    async corrigirRedacao(o) {
+      const pedir = (model: string) =>
+        ai.models.generateContent({
+          model,
+          contents: [
+            {
+              role: "user",
+              parts: [...o.imagens.map((i) => ({ inlineData: { mimeType: i.mime, data: i.data } })), { text: instrucoesRedacao(o) }],
+            },
+          ],
+          config: {
+            systemInstruction: SISTEMA_REDACAO,
+            responseMimeType: "application/json",
+            responseJsonSchema: z.toJSONSchema(CorrecaoRedacaoSchema),
+            maxOutputTokens: 32000,
+          },
+        });
+      const r = await comReserva(pedir);
+      let json: unknown;
+      try {
+        json = JSON.parse(r.text ?? "");
+      } catch {
+        throw new ErroIA("A IA devolveu uma resposta incompleta. Tente de novo.", 422);
+      }
+      const parsed = CorrecaoRedacaoSchema.safeParse(json);
+      if (!parsed.success) throw new ErroIA("A IA não devolveu a correção no formato esperado. Tente de novo.");
+      return parsed.data;
+    },
+
+    async sugerirTema(o) {
+      const r = await comReserva((model) =>
+        ai.models.generateContent({
+          model,
+          contents: `Banca: ${o.banca}. Crie uma proposta.`,
+          config: {
+            systemInstruction: SISTEMA_TEMA,
+            responseMimeType: "application/json",
+            responseJsonSchema: z.toJSONSchema(TemaSugeridoSchema),
+            maxOutputTokens: 3000,
+          },
+        }),
+      );
+      const parsed = TemaSugeridoSchema.safeParse(JSON.parse(r.text ?? "{}"));
+      if (!parsed.success) throw new ErroIA("A IA não devolveu o tema no formato esperado. Tente de novo.");
+      return parsed.data;
     },
 
     async classificarFontes(o) {

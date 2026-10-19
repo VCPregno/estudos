@@ -47,7 +47,7 @@ Para economizar, informe na tela de importação só as páginas do conteúdo pr
 
 Fluxo: o navegador sobe o PDF para o Storage, a rota `/api/editais/extrair` manda para a IA e devolve disciplinas e tópicos para revisão. Só depois da confirmação a função `importar_edital()` grava tudo numa transação. Cada leitura fica registrada em `edital_importacoes` com modelo e tokens.
 
-A rota `/api/tutor` (Tutor Pontes) já funciona e será ligada ao Banco de Questões.
+O tutor Campos (rotas `/api/tutor` e `/api/tutor/trecho`) explica questões erradas e trechos de lei.
 
 ## Importar questões e flashcards
 

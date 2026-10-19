@@ -375,7 +375,7 @@ export function LeitorLei({ lei, disciplinas }: { lei: LeiCompleta; disciplinas:
           <Button size="icon-sm" variant="ghost" aria-label="Nota" title="Nota" onClick={abrirNota}>
             <MessageSquareText />
           </Button>
-          <Button size="icon-sm" variant="ghost" aria-label="Explicar com o Pontes" title="Explicar com o Pontes" onClick={explicar}>
+          <Button size="icon-sm" variant="ghost" aria-label="Explicar com o Campos" title="Explicar com o Campos" onClick={explicar}>
             <GraduationCap />
           </Button>
           <Button
@@ -420,7 +420,7 @@ export function LeitorLei({ lei, disciplinas }: { lei: LeiCompleta; disciplinas:
 
       {explicacao && (
         <Dialog open onOpenChange={(v) => !v && setExplicacao(null)}>
-          <DialogContent titulo="Pontes" descricao={explicacao.trecho.slice(0, 220) + (explicacao.trecho.length > 220 ? "…" : "")}>
+          <DialogContent titulo="Campos" descricao={explicacao.trecho.slice(0, 220) + (explicacao.trecho.length > 220 ? "…" : "")}>
             {explicacao.texto === null ? (
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />

@@ -48,7 +48,7 @@ export function instrucoesProva(o: OpcoesProva) {
   return partes.join("\n\n");
 }
 
-export const SISTEMA_TUTOR =`Você é o Pontes, tutor de um estudante de concursos públicos (Direito e TI).
+export const SISTEMA_TUTOR =`Você é o Campos, tutor de um estudante de concursos públicos (Direito e TI).
 O estudante errou uma questão e quer entender por quê.
 
 Responda em português, direto ao ponto, em no máximo 3 parágrafos curtos:
@@ -109,7 +109,7 @@ export function instrucoesFlashcards(o: { texto: string; quantidade: number; con
     .join("\n\n");
 }
 
-export const SISTEMA_TRECHO = `Você é o Pontes, tutor de um estudante de concursos públicos. Ele grifou um trecho de lei e quer entender.
+export const SISTEMA_TRECHO = `Você é o Campos, tutor de um estudante de concursos públicos. Ele grifou um trecho de lei e quer entender.
 
 Responda em português, em até 3 parágrafos curtos, texto corrido simples (sem títulos nem tabelas):
 1. O que o trecho diz, em linguagem direta, com um exemplo concreto quando ajudar.
@@ -142,3 +142,37 @@ Devolva um item para cada chave recebida.`;
 export function instrucoesFontes(o: { contexto: string; itens: { chave: string; disciplina: string; titulo: string }[] }) {
   return [`Concurso: ${o.contexto}`, "Tópicos:", ...o.itens.map((i) => `${i.chave} | ${i.disciplina} | ${i.titulo}`)].join("\n");
 }
+
+export const SISTEMA_REDACAO = `Você é o Campos, corretor de redações e questões discursivas de concursos públicos brasileiros. Corrija com o rigor da banca indicada, em português.
+
+Regras:
+- Se vier foto, primeiro transcreva o texto do candidato exatamente como está, com os erros de grafia, pontuação e acentuação. Não corrija na transcrição. O que não der para ler vira [ilegível]. Ignore rasuras riscadas.
+- Aplique a régua informada. Use exatamente os critérios e pesos dela; o máximo de cada critério é o peso aplicado à nota máxima. Seja exigente como a banca: nota alta só para texto realmente bom.
+- Fuga total ao tema zera a nota. Texto abaixo do mínimo de linhas: avise em "melhorias" e penalize conforme a régua (em geral, abaixo do mínimo a banca zera).
+- Liste os erros de norma-padrão e de coesão um por um, com o trecho exato copiado da transcrição. Não invente erros. Em "argumentacao" e "estrutura", aponte o trecho que mostra o problema.
+- Comentários diretos e específicos, citando o texto. Nada de elogio genérico.
+- Em questão discursiva, verifique se cada ponto pedido no enunciado foi respondido e se a fundamentação está correta; aponte o que faltou.`;
+
+export function instrucoesRedacao(o: {
+  tipo: "redacao" | "discursiva";
+  banca: string;
+  tema: string;
+  notaMaxima: number;
+  linhasMin?: number | null;
+  linhasMax?: number | null;
+  criterios: string;
+  texto?: string;
+}) {
+  return [
+    o.tipo === "redacao" ? "Tipo: redação dissertativo-argumentativa." : "Tipo: questão discursiva.",
+    `Banca: ${o.banca}. Nota máxima: ${o.notaMaxima}.`,
+    o.linhasMin || o.linhasMax ? `Linhas exigidas: ${o.linhasMin ?? "?"} a ${o.linhasMax ?? "?"}.` : "",
+    `Régua:\n${o.criterios}`,
+    `${o.tipo === "redacao" ? "Tema / proposta" : "Enunciado da questão"}:\n${o.tema}`,
+    o.texto ? `Texto do candidato:\n${o.texto}` : "O texto do candidato está nas imagens anexas, na ordem das páginas.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export const SISTEMA_TEMA = `Você cria propostas de redação dissertativo-argumentativa no estilo das bancas de concursos públicos brasileiros (temas de interesse geral: sociedade, tecnologia, cidadania, serviço público, meio ambiente, trabalho). Escreva a proposta como a banca escreveria e dois ou três textos motivadores curtos, escritos por você (não atribua a autores ou veículos reais). Em português.`;
