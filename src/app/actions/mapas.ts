@@ -70,3 +70,24 @@ export async function apagarMapa(id: string): Promise<Resultado> {
   refresh();
   return { ok: true };
 }
+
+const Diagrama = z.object({
+  titulo: z.string().trim().min(1).max(200),
+  formato: z.enum(["mapa", "fluxo"]),
+  conteudo: z.string().min(3).max(60000),
+});
+
+/** Salva o texto editado de um mapa desenhado. */
+export async function salvarDiagrama(id: string, dados: z.infer<typeof Diagrama>): Promise<Resultado> {
+  const p = Diagrama.safeParse(dados);
+  if (!z.uuid().safeParse(id).success || !p.success) return { ok: false, erro: "Dados inválidos." };
+  if (!supabaseConfigurado()) return { ok: true };
+  const { supabase, user } = await usuarioAtual();
+  if (!user) return { ok: false, erro: "Sessão expirada. Entre de novo." };
+  const { error } = await supabase
+    .from("mapas")
+    .update({ titulo: p.data.titulo, diagrama: { formato: p.data.formato, conteudo: p.data.conteudo } })
+    .eq("id", id);
+  if (error) return { ok: false, erro: error.message };
+  return { ok: true };
+}

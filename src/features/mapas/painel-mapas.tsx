@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { ExternalLink, FileText, Loader2, Pencil, Trash2, Upload } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Network, Pencil, Sparkles, Trash2, Upload, Workflow } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { apagarMapa, editarMapa, registrarMapa } from "@/app/actions/mapas";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Input, Label } from "@/components/ui/primitives";
+import { Input, Label, Textarea } from "@/components/ui/primitives";
 import type { DadosMapas, Mapa } from "@/lib/data/mapas";
 import { criarClienteNavegador } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,8 @@ export function PainelMapas({ dados }: { dados: DadosMapas }) {
   const [enviar, setEnviar] = useState(false);
   const [aberto, setAberto] = useState<Mapa | null>(null);
   const [editando, setEditando] = useState<Mapa | null>(null);
+  const [desenhar, setDesenhar] = useState(false);
+  const router = useRouter();
   const demo = dados.modo === "demo";
 
   const nomes = useMemo(() => new Map(dados.disciplinas.map((d) => [d.id, d])), [dados.disciplinas]);
@@ -51,10 +54,16 @@ export function PainelMapas({ dados }: { dados: DadosMapas }) {
           <h1 className="text-3xl font-semibold tracking-tight">Mapas e esquemas</h1>
           <p className="mt-1 max-w-prose text-sm text-muted-foreground">Seus mapas mentais e resumos em PDF ou imagem, organizados por disciplina e assunto.</p>
         </div>
-        <Button variant="highlight" onClick={() => setEnviar(true)} disabled={demo}>
-          <Upload />
-          Enviar mapa
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setEnviar(true)} disabled={demo}>
+            <Upload />
+            Enviar arquivo
+          </Button>
+          <Button variant="highlight" onClick={() => setDesenhar(true)} disabled={demo}>
+            <Sparkles />
+            Desenhar com IA
+          </Button>
+        </div>
       </header>
 
       {demo && <p className="rounded-lg border border-dashed px-4 py-2.5 text-sm text-muted-foreground">Mapas precisam do Supabase configurado.</p>}
@@ -63,8 +72,8 @@ export function PainelMapas({ dados }: { dados: DadosMapas }) {
         <section className="rounded-xl border bg-card p-6 md:p-8">
           <h2 className="text-lg font-semibold">Nenhum mapa ainda</h2>
           <p className="mt-2 max-w-prose text-sm text-muted-foreground">
-            Envie uma foto do mapa feito à mão, um PDF exportado do iPad ou um esquema de cursinho. Eles ficam guardados só para você, separados por
-            disciplina e assunto.
+            Peça para a IA desenhar um mapa mental ou um fluxograma de um tópico da sua ementa ou de um texto colado, ou envie a foto do mapa feito à
+            mão e o PDF do iPad. Tudo fica separado por disciplina e assunto.
           </p>
         </section>
       )}
@@ -100,11 +109,16 @@ export function PainelMapas({ dados }: { dados: DadosMapas }) {
                   <li key={m.id} className="group relative">
                     <button
                       type="button"
-                      onClick={() => setAberto(m)}
+                      onClick={() => (m.tipo === "diagrama" ? router.push(`/mapas/${m.id}`) : setAberto(m))}
                       className="flex w-full flex-col overflow-hidden rounded-xl border bg-card text-left outline-none transition-colors hover:border-foreground/30 focus-visible:ring-[3px] focus-visible:ring-ring/40"
                     >
                       <span className="grid aspect-[4/3] place-items-center overflow-hidden bg-muted">
-                        {m.mimeType?.startsWith("image/") && m.url ? (
+                        {m.tipo === "diagrama" ? (
+                          <span className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                            {m.diagrama?.formato === "fluxo" ? <Workflow className="size-8" /> : <Network className="size-8" />}
+                            <span className="text-xs">{m.diagrama?.formato === "fluxo" ? "Fluxograma" : "Mapa mental"}</span>
+                          </span>
+                        ) : m.mimeType?.startsWith("image/") && m.url ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={m.url} alt="" loading="lazy" className="size-full object-cover" />
                         ) : (
@@ -130,6 +144,7 @@ export function PainelMapas({ dados }: { dados: DadosMapas }) {
       ))}
 
       {enviar && <EnviarMapa aberto onAberto={setEnviar} dados={dados} assuntos={assuntos} />}
+      {desenhar && <DesenharComIA onFechar={() => setDesenhar(false)} dados={dados} />}
       {editando && <EditarMapa key={editando.id} mapa={editando} onFechar={() => setEditando(null)} dados={dados} assuntos={assuntos} />}
       {aberto && (
         <Dialog open onOpenChange={(v) => !v && setAberto(null)}>
@@ -351,6 +366,107 @@ function EditarMapa({ mapa, onFechar, dados, assuntos }: { mapa: Mapa; onFechar:
             <Button variant="ghost" className="text-destructive" disabled={ocupado} onClick={apagar}>
               <Trash2 />
               Apagar
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DesenharComIA({ onFechar, dados }: { onFechar: () => void; dados: DadosMapas }) {
+  const router = useRouter();
+  const [formato, setFormato] = useState<"mapa" | "fluxo">("mapa");
+  const [fonte, setFonte] = useState<"topico" | "texto">("topico");
+  const [disciplinaId, setDisciplinaId] = useState(dados.disciplinas[0]?.id ?? "");
+  const [topico, setTopico] = useState("");
+  const [texto, setTexto] = useState("");
+  const [gerando, setGerando] = useState(false);
+  const disc = dados.disciplinas.find((d) => d.id === disciplinaId);
+
+  async function gerar() {
+    setGerando(true);
+    try {
+      const tema = fonte === "topico" ? topico : undefined;
+      const r = await fetch("/api/mapas/gerar", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          formato,
+          tema,
+          texto: fonte === "texto" ? texto : undefined,
+          disciplinaId: disciplinaId || null,
+          assunto: fonte === "topico" ? topico.split(" › ")[0] : null,
+          contexto: disc ? `Disciplina: ${disc.nome}` : undefined,
+        }),
+      });
+      const j = await r.json().catch(() => ({ erro: "Resposta inválida." }));
+      if (!r.ok) throw new Error(j.erro);
+      router.push(`/mapas/${j.id}`);
+    } catch (e) {
+      toast.error((e as Error).message);
+      setGerando(false);
+    }
+  }
+
+  const pronto = fonte === "topico" ? topico.length > 0 : texto.trim().length >= 30;
+  const opcao = (ativo: boolean) => cn("rounded-md px-3 py-1.5 text-sm text-muted-foreground", ativo && "bg-card font-medium text-foreground shadow-sm");
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && !gerando && onFechar()}>
+      <DialogContent titulo="Desenhar com IA" descricao="Mapa mental para conceitos e classificações; fluxograma para procedimentos e ritos.">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-3">
+            <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Formato">
+              <button type="button" role="radio" aria-checked={formato === "mapa"} onClick={() => setFormato("mapa")} className={opcao(formato === "mapa")}>
+                Mapa mental
+              </button>
+              <button type="button" role="radio" aria-checked={formato === "fluxo"} onClick={() => setFormato("fluxo")} className={opcao(formato === "fluxo")}>
+                Fluxograma
+              </button>
+            </div>
+            <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="A partir de">
+              <button type="button" role="radio" aria-checked={fonte === "topico"} onClick={() => setFonte("topico")} className={opcao(fonte === "topico")}>
+                Tópico da ementa
+              </button>
+              <button type="button" role="radio" aria-checked={fonte === "texto"} onClick={() => setFonte("texto")} className={opcao(fonte === "texto")}>
+                Texto colado
+              </button>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="text-xs text-muted-foreground">Disciplina</span>
+              <select value={disciplinaId} onChange={(e) => { setDisciplinaId(e.target.value); setTopico(""); }} className="h-9 rounded-md border bg-card px-2.5 text-sm">
+                <option value="">Sem disciplina</option>
+                {dados.disciplinas.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {fonte === "topico" && (
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="text-xs text-muted-foreground">Tópico</span>
+                <select value={topico} onChange={(e) => setTopico(e.target.value)} className="h-9 rounded-md border bg-card px-2.5 text-sm">
+                  <option value="">Escolha</option>
+                  {(disc?.topicos ?? []).map((t) => (
+                    <option key={t.id} value={t.titulo}>
+                      {t.titulo}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+          {fonte === "texto" && (
+            <Textarea rows={8} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Cole um trecho de lei, resumo ou anotação." aria-label="Texto" />
+          )}
+          <div>
+            <Button variant="highlight" disabled={!pronto || gerando} onClick={gerar}>
+              {gerando ? <Loader2 className="animate-spin" /> : <Sparkles />}
+              {gerando ? "Desenhando…" : "Desenhar"}
             </Button>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { type EditalExtraido, EditalExtraidoSchema } from "./esquema-edital";
 import { type FlashcardsGerados, FlashcardsGeradosSchema } from "./esquema-flashcards";
 import { type FontesClassificadas, FontesClassificadasSchema } from "./esquema-fontes";
 import { type ProvaExtraida, ProvaExtraidaSchema } from "./esquema-prova";
+import { type MapaGerado, MapaGeradoSchema } from "./esquema-mapa";
 import { type CorrecaoRedacao, CorrecaoRedacaoSchema, type TemaSugerido, TemaSugeridoSchema } from "./esquema-redacao";
 import {
   type DadosQuestaoTutor,
@@ -14,6 +15,7 @@ import {
   SISTEMA_EDITAL,
   SISTEMA_FLASHCARDS,
   SISTEMA_FONTES,
+  SISTEMA_MAPA,
   SISTEMA_PROVA,
   SISTEMA_REDACAO,
   SISTEMA_TEMA,
@@ -22,6 +24,7 @@ import {
   instrucoesEdital,
   instrucoesFlashcards,
   instrucoesFontes,
+  instrucoesMapa,
   instrucoesProva,
   instrucoesRedacao,
   mensagemTrecho,
@@ -54,6 +57,7 @@ export interface ProvedorIA {
   classificarFontes(o: { contexto: string; itens: { chave: string; disciplina: string; titulo: string }[] }): Promise<FontesClassificadas>;
   corrigirRedacao(o: Parameters<typeof instrucoesRedacao>[0] & { imagens: { mime: string; data: string }[] }): Promise<CorrecaoRedacao>;
   sugerirTema(o: { banca: string }): Promise<TemaSugerido>;
+  gerarMapa(o: Parameters<typeof instrucoesMapa>[0]): Promise<MapaGerado>;
 }
 
 export class ErroIA extends Error {
@@ -152,6 +156,18 @@ function provedorClaude(): ProvedorIA {
         output_config: { format: zodOutputFormat(CorrecaoRedacaoSchema) },
       });
       if (!msg.parsed_output) throw new ErroIA("A IA não devolveu a correção no formato esperado. Tente de novo.");
+      return msg.parsed_output;
+    },
+
+    async gerarMapa(o) {
+      const msg = await client.messages.parse({
+        model: modeloTutor,
+        max_tokens: 6000,
+        system: SISTEMA_MAPA,
+        messages: [{ role: "user", content: instrucoesMapa(o) }],
+        output_config: { format: zodOutputFormat(MapaGeradoSchema) },
+      });
+      if (!msg.parsed_output) throw new ErroIA("A IA não devolveu o mapa no formato esperado. Tente de novo.");
       return msg.parsed_output;
     },
 
@@ -346,6 +362,30 @@ function provedorGemini(): ProvedorIA {
       }
       const parsed = CorrecaoRedacaoSchema.safeParse(json);
       if (!parsed.success) throw new ErroIA("A IA não devolveu a correção no formato esperado. Tente de novo.");
+      return parsed.data;
+    },
+
+    async gerarMapa(o) {
+      const r = await comReserva((model) =>
+        ai.models.generateContent({
+          model,
+          contents: instrucoesMapa(o),
+          config: {
+            systemInstruction: SISTEMA_MAPA,
+            responseMimeType: "application/json",
+            responseJsonSchema: z.toJSONSchema(MapaGeradoSchema),
+            maxOutputTokens: 8000,
+          },
+        }),
+      );
+      let json: unknown;
+      try {
+        json = JSON.parse(r.text ?? "");
+      } catch {
+        throw new ErroIA("A IA devolveu uma resposta incompleta. Tente de novo.", 422);
+      }
+      const parsed = MapaGeradoSchema.safeParse(json);
+      if (!parsed.success) throw new ErroIA("A IA não devolveu o mapa no formato esperado. Tente de novo.");
       return parsed.data;
     },
 

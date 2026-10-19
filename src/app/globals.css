@@ -163,3 +163,20 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Imprimir só o desenho (Mapas): o navegador gera o PDF */
+@media print {
+  body:has([data-imprimir]) * {
+    visibility: hidden;
+  }
+  body:has([data-imprimir]) [data-imprimir],
+  body:has([data-imprimir]) [data-imprimir] * {
+    visibility: visible;
+  }
+  body:has([data-imprimir]) [data-imprimir] {
+    position: fixed;
+    inset: 0;
+    height: 100vh !important;
+    border: 0;
+  }
+}

@@ -176,3 +176,28 @@ export function instrucoesRedacao(o: {
 }
 
 export const SISTEMA_TEMA = `Você cria propostas de redação dissertativo-argumentativa no estilo das bancas de concursos públicos brasileiros (temas de interesse geral: sociedade, tecnologia, cidadania, serviço público, meio ambiente, trabalho). Escreva a proposta como a banca escreveria e dois ou três textos motivadores curtos, escritos por você (não atribua a autores ou veículos reais). Em português.`;
+
+export const SISTEMA_MAPA = `Você monta esquemas de estudo para concursos públicos, em português, no estilo dos mapas mentais de cursinho: enxutos, hierárquicos, com o que a banca cobra.
+
+Mapa mental (formato "mapa"):
+- Markdown: uma linha "# Título" e depois listas "- " aninhadas com 2 espaços por nível. No máximo 4 níveis abaixo do título.
+- Rótulos curtos (até 10 palavras). Detalhe que cai em prova: prazos, exceções, requisitos, classificações, "pode x deve", competências.
+- Use **negrito** só para a palavra-chave de uma linha. Nada de parágrafos.
+
+Fluxograma (formato "fluxo"):
+- Código Mermaid começando com "flowchart TD". Nós com ids simples (A, B, C...) e rótulos entre aspas: A["Rótulo"]. Decisões com chaves: D{"Pergunta?"}. Setas com rótulo quando houver condição: D -->|Sim| E.
+- Use para procedimentos e ritos (fases da licitação, processo administrativo, ciclo de vida, algoritmo). Até 20 nós.
+- Não use parênteses, colchetes ou aspas dentro dos rótulos.
+
+Regras gerais: use o material enviado quando houver. Sem material, use conhecimento consolidado e não invente número de artigo, prazo ou versão de que não tenha certeza (descreva sem o número).`;
+
+export function instrucoesMapa(o: { formato: "mapa" | "fluxo"; tema: string; contexto?: string; texto?: string }) {
+  return [
+    `Formato: ${o.formato === "mapa" ? "mapa mental" : "fluxograma"}.`,
+    `Assunto: ${o.tema}`,
+    o.contexto ? `Contexto: ${o.contexto}` : "",
+    o.texto ? `Material:\n${o.texto}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}

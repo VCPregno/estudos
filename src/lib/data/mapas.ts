@@ -1,5 +1,6 @@
 import "server-only";
 import { supabaseConfigurado } from "@/lib/env";
+import type { Diagrama } from "@/lib/mapas";
 import { usuarioAtual } from "@/lib/supabase/server";
 import { type OpcaoDisciplina, carregarDisciplinasComTopicos } from "./flashcards";
 
@@ -8,6 +9,8 @@ export interface Mapa {
   titulo: string;
   assunto: string | null;
   disciplinaId: string | null;
+  tipo: "arquivo" | "diagrama";
+  diagrama: Diagrama | null;
   mimeType: string | null;
   arquivoPath: string | null;
   url: string | null;
@@ -28,8 +31,7 @@ export async function carregarMapas(): Promise<DadosMapas> {
   const [{ data }, disciplinas] = await Promise.all([
     supabase
       .from("mapas")
-      .select("id, titulo, assunto, disciplina_id, mime_type, arquivo_path, created_at")
-      .eq("tipo", "arquivo")
+      .select("id, titulo, assunto, disciplina_id, tipo, diagrama, mime_type, arquivo_path, created_at")
       .order("disciplina_id")
       .order("assunto")
       .order("ordem")
@@ -51,10 +53,38 @@ export async function carregarMapas(): Promise<DadosMapas> {
       titulo: m.titulo,
       assunto: m.assunto,
       disciplinaId: m.disciplina_id,
+      tipo: m.tipo,
+      diagrama: m.diagrama,
       mimeType: m.mime_type,
       arquivoPath: m.arquivo_path,
       url: m.arquivo_path ? (urls.get(m.arquivo_path) ?? null) : null,
       criadoEm: m.created_at,
     })),
+  };
+}
+
+export async function carregarMapa(id: string): Promise<{ mapa: Mapa | null; disciplinas: OpcaoDisciplina[] }> {
+  if (!supabaseConfigurado()) return { mapa: null, disciplinas: [] };
+  const { supabase, user } = await usuarioAtual();
+  if (!user) return { mapa: null, disciplinas: [] };
+  const [{ data: m }, disciplinas] = await Promise.all([
+    supabase.from("mapas").select("id, titulo, assunto, disciplina_id, tipo, diagrama, mime_type, arquivo_path, created_at").eq("id", id).maybeSingle(),
+    carregarDisciplinasComTopicos(),
+  ]);
+  if (!m) return { mapa: null, disciplinas };
+  return {
+    disciplinas,
+    mapa: {
+      id: m.id,
+      titulo: m.titulo,
+      assunto: m.assunto,
+      disciplinaId: m.disciplina_id,
+      tipo: m.tipo,
+      diagrama: m.diagrama,
+      mimeType: m.mime_type,
+      arquivoPath: m.arquivo_path,
+      url: null,
+      criadoEm: m.created_at,
+    },
   };
 }
