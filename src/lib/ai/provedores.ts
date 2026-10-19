@@ -193,6 +193,24 @@ function provedorGemini(): ProvedorIA {
   const modeloTutor = process.env.GEMINI_MODEL_TUTOR || "gemini-3.8-flash";
   const modeloTutorReserva = process.env.GEMINI_MODEL_TUTOR_RESERVA || "gemini-3.5-flash-lite";
 
+  /** Modelo principal; se estiver sobrecarregado (503) tenta de novo, e no limite (429) usa o reserva. */
+  async function comReserva<T>(pedir: (model: string) => Promise<T>): Promise<T> {
+    try {
+      return await pedir(modeloTutor);
+    } catch (e) {
+      if (!falhaPassageira(e)) throw e;
+      if (sobrecarga(e)) {
+        await new Promise((r) => setTimeout(r, 2000));
+        try {
+          return await pedir(modeloTutor);
+        } catch (e2) {
+          if (!falhaPassageira(e2) || modeloTutorReserva === modeloTutor) throw e2;
+        }
+      } else if (modeloTutorReserva === modeloTutor) throw e;
+      return pedir(modeloTutorReserva);
+    }
+  }
+
   return {
     nome: "gemini",
     modeloEdital,
@@ -273,13 +291,7 @@ function provedorGemini(): ProvedorIA {
             maxOutputTokens: 32000,
           },
         });
-      let r;
-      try {
-        r = await pedir(modeloTutor);
-      } catch (e) {
-        if (!limiteAtingido(e) || modeloTutorReserva === modeloTutor) throw e;
-        r = await pedir(modeloTutorReserva);
-      }
+      const r = await comReserva(pedir);
       let json: unknown;
       try {
         json = JSON.parse(r.text ?? "");
@@ -298,13 +310,7 @@ function provedorGemini(): ProvedorIA {
           contents: mensagemTrecho(o),
           config: { systemInstruction: SISTEMA_TRECHO, maxOutputTokens: 4000 },
         });
-      let r;
-      try {
-        r = await pedir(modeloTutor);
-      } catch (e) {
-        if (!limiteAtingido(e) || modeloTutorReserva === modeloTutor) throw e;
-        r = await pedir(modeloTutorReserva);
-      }
+      const r = await comReserva(pedir);
       return { texto: r.text ?? "" };
     },
 
@@ -320,13 +326,7 @@ function provedorGemini(): ProvedorIA {
             maxOutputTokens: 8000,
           },
         });
-      let r;
-      try {
-        r = await pedir(modeloTutor);
-      } catch (e) {
-        if (!limiteAtingido(e) || modeloTutorReserva === modeloTutor) throw e;
-        r = await pedir(modeloTutorReserva);
-      }
+      const r = await comReserva(pedir);
       let json: unknown;
       try {
         json = JSON.parse(r.text ?? "");
@@ -345,13 +345,7 @@ function provedorGemini(): ProvedorIA {
           contents: mensagemTutor(q),
           config: { systemInstruction: SISTEMA_TUTOR, maxOutputTokens: 4000 },
         });
-      let r;
-      try {
-        r = await pedir(modeloTutor);
-      } catch (e) {
-        if (!limiteAtingido(e) || modeloTutorReserva === modeloTutor) throw e;
-        r = await pedir(modeloTutorReserva);
-      }
+      const r = await comReserva(pedir);
       return {
         texto: r.text ?? "",
         uso: {
@@ -368,6 +362,16 @@ function provedorGemini(): ProvedorIA {
 function limiteAtingido(e: unknown) {
   const msg = e instanceof Error ? e.message : String(e);
   return /429|RESOURCE_EXHAUSTED|quota/i.test(msg);
+}
+
+function sobrecarga(e: unknown) {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /\b503\b|UNAVAILABLE|overloaded|high demand/i.test(msg);
+}
+
+/** Erros que passam sozinhos: limite gratuito ou modelo sobrecarregado. */
+function falhaPassageira(e: unknown) {
+  return limiteAtingido(e) || sobrecarga(e);
 }
 
 export function modeloEditalDe(nome: NomeProvedor): string {
@@ -405,6 +409,9 @@ export function mensagemDeErro(e: unknown): { mensagem: string; status: number }
     if (e.status === 413 || /too large|pages/i.test(e.message))
       return { mensagem: "PDF grande demais para a IA. Envie só as páginas do conteúdo programático.", status: 413 };
     return { mensagem: `Erro da API da Anthropic: ${e.message}`, status: 502 };
+  }
+  if (sobrecarga(e)) {
+    return { mensagem: "A IA gratuita está sobrecarregada neste momento. Tente de novo em alguns minutos.", status: 503 };
   }
   if (limiteAtingido(e)) {
     return { mensagem: "O limite gratuito da IA acabou por agora. Espere alguns minutos (ou até amanhã) e tente de novo.", status: 429 };

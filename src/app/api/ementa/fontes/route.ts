@@ -55,19 +55,21 @@ export async function POST(request: Request) {
   const lotes: (typeof itens)[] = [];
   for (let i = 0; i < itens.length; i += LOTE) lotes.push(itens.slice(i, i + LOTE));
 
-  try {
-    const resultados = await Promise.all(
-      lotes.map((l) => provedor.classificarFontes({ contexto, itens: l.map(({ chave, disciplina, titulo }) => ({ chave, disciplina, titulo })) })),
-    );
-    const linhas = resultados
-      .flatMap((r) => r.itens)
-      .map((x) => ({ id: porChave.get(x.chave.trim().toUpperCase()), tipo: x.tipo, fonte: x.fonte }))
-      .filter((x): x is { id: string; tipo: (typeof x)["tipo"]; fonte: string } => !!x.id);
-    const { data, error } = await supabase.rpc("definir_fontes", { p_itens: linhas });
-    if (error) return NextResponse.json({ erro: `Não deu para salvar: ${error.message}` }, { status: 500 });
-    return NextResponse.json({ classificados: data ?? linhas.length, total: topicos.length });
-  } catch (e) {
-    const { mensagem, status } = mensagemDeErro(e);
+  // Cada lote é independente: o que der certo é salvo mesmo se outro falhar.
+  const resultados = await Promise.allSettled(
+    lotes.map((l) => provedor.classificarFontes({ contexto, itens: l.map(({ chave, disciplina, titulo }) => ({ chave, disciplina, titulo })) })),
+  );
+  const ok = resultados.flatMap((r) => (r.status === "fulfilled" ? r.value.itens : []));
+  const falha = resultados.find((r): r is PromiseRejectedResult => r.status === "rejected");
+  if (!ok.length && falha) {
+    const { mensagem, status } = mensagemDeErro(falha.reason);
     return NextResponse.json({ erro: mensagem }, { status });
   }
+
+  const linhas = ok
+    .map((x) => ({ id: porChave.get(x.chave.trim().toUpperCase()), tipo: x.tipo, fonte: x.fonte }))
+    .filter((x): x is { id: string; tipo: (typeof x)["tipo"]; fonte: string } => !!x.id);
+  const { data, error } = await supabase.rpc("definir_fontes", { p_itens: linhas });
+  if (error) return NextResponse.json({ erro: `Não deu para salvar: ${error.message}` }, { status: 500 });
+  return NextResponse.json({ classificados: data ?? linhas.length, faltam: alvo.length - linhas.length, total: topicos.length });
 }

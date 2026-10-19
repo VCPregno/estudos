@@ -57,7 +57,8 @@ export function TabelaEmenta({ dados }: { dados: DadosEmenta }) {
       });
       const j = await r.json().catch(() => ({ erro: "A classificação demorou demais. Tente de novo." }));
       if (!r.ok) throw new Error(j.erro);
-      toast.success(`${j.classificados} tópicos classificados.`);
+      if (j.faltam > 0) toast(`${j.classificados} tópicos classificados. Faltaram ${j.faltam}: a IA estava sobrecarregada, clique de novo daqui a pouco.`);
+      else toast.success(`${j.classificados} tópicos classificados.`);
       router.refresh();
     } catch (e) {
       toast.error((e as Error).message);
