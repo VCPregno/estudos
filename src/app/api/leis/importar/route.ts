@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseConfigurado } from "@/lib/env";
-import { htmlParaTexto } from "@/lib/leis";
+import { extractText, getDocumentProxy } from "unpdf";
+import { htmlParaTexto, pdfParaTexto } from "@/lib/leis";
 import { usuarioAtual } from "@/lib/supabase/server";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const Corpo = z.object({ url: z.url().max(2000) });
 
@@ -41,9 +42,23 @@ export async function POST(request: Request) {
   const r = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(30_000), headers: { "user-agent": "Mozilla/5.0 (estudos)" } }).catch(() => null);
   if (!r || !r.ok) return NextResponse.json({ erro: `Não consegui abrir o link (${r?.status ?? "sem resposta"}). Copie o texto da página e cole.` }, { status: 422 });
   const tipo = r.headers.get("content-type");
-  if (tipo?.includes("pdf")) return NextResponse.json({ erro: "O link é de um PDF. Abra o PDF, copie o texto e cole na opção “Colar texto”." }, { status: 415 });
-
   const bytes = new Uint8Array(await r.arrayBuffer());
+
+  // PDF (regimentos, normas de corregedoria, resoluções): extrai o texto no servidor.
+  const ehPdf = tipo?.includes("pdf") || new TextDecoder("latin1").decode(bytes.slice(0, 5)) === "%PDF-";
+  if (ehPdf) {
+    if (bytes.length > 20 * 1024 * 1024) return NextResponse.json({ erro: "PDF grande demais (máximo de 20 MB)." }, { status: 413 });
+    try {
+      const pdf = await getDocumentProxy(bytes);
+      const { text } = await extractText(pdf, { mergePages: false });
+      const texto = pdfParaTexto(Array.isArray(text) ? text : [text]);
+      if (texto.length < 200) return NextResponse.json({ erro: "O PDF não tem texto selecionável (parece digitalizado). Copie o texto e cole." }, { status: 422 });
+      return NextResponse.json({ titulo: null, texto });
+    } catch {
+      return NextResponse.json({ erro: "Não consegui ler esse PDF. Copie o texto e cole." }, { status: 422 });
+    }
+  }
+
   if (bytes.length > 8 * 1024 * 1024) return NextResponse.json({ erro: "Página grande demais." }, { status: 413 });
   // Muitas páginas oficiais (Planalto) estão em windows-1252 e nem sempre
   // declaram isso. Tenta UTF-8 estrito; se não for UTF-8 válido, usa o declarado

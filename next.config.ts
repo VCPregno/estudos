@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   experimental: {
     // o PDF do edital passa pelo proxy quando enviado direto (sem Supabase Storage)
     proxyClientMaxBodySize: "30mb",
+    // leis grandes (códigos inteiros, normas em PDF) passam pela action criarLei
+    serverActions: { bodySizeLimit: "4mb" },
   },
   partialPrefetching: true,
   turbopack: {

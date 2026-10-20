@@ -172,3 +172,30 @@ export function buscar(texto: string, termo: string): [number, number][] {
   }
   return out;
 }
+
+// Início de um novo dispositivo: o que vem depois de uma quebra e NÃO é continuação da linha anterior.
+const NOVO_DISPOSITIVO =
+  /^(Art\.?|Artigo|§|Parágrafo|[IVXLC]+\s*[-–—.)]|[a-z]\)|\d+\s*[-–.)]\s|Seção|Subseção|CAPÍTULO|Capítulo|TÍTULO|Título|LIVRO|Livro|ANEXO|Anexo|Pena\b)/;
+
+/**
+ * Texto extraído de PDF (uma string por página) para o mesmo formato do texto
+ * de HTML: tira a numeração de linhas e de página e junta as linhas que o PDF
+ * quebrou no meio da frase.
+ */
+export function pdfParaTexto(paginas: readonly string[]): string {
+  const linhas = paginas
+    .join("\n")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((l) => l.replace(/[ \t ]+/g, " ").trim())
+    .filter((l) => l.length > 0 && !/^\d{1,4}$/.test(l));
+  const out: string[] = [];
+  for (const l of linhas) {
+    const anterior = out[out.length - 1];
+    const titulo = /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9 ,;–—-]{6,}$/.test(l);
+    if (anterior !== undefined && !NOVO_DISPOSITIVO.test(l) && !titulo && !/[.:;]$/.test(anterior) && !/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9 ,;–—-]{6,}$/.test(anterior)) {
+      out[out.length - 1] = `${anterior} ${l}`;
+    } else out.push(l);
+  }
+  return out.join("\n");
+}

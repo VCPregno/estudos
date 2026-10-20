@@ -190,7 +190,7 @@ function AdicionarLei({
 
   return (
     <Dialog open={aberto} onOpenChange={onAberto}>
-      <DialogContent titulo="Adicionar lei" descricao="Pelo link da página oficial (o texto riscado, revogado, fica de fora) ou colando o texto.">
+      <DialogContent titulo="Adicionar lei" descricao="Pelo link da página oficial ou do PDF (o texto riscado, revogado, fica de fora) ou colando o texto.">
         <div className="flex flex-col gap-4">
           <div className="flex gap-1 self-start rounded-lg bg-muted p-1" role="radiogroup" aria-label="Como adicionar">
             {(["link", "texto"] as const).map((m) => (

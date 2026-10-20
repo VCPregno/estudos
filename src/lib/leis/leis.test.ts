@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buscar, htmlParaTexto, normalizarTexto, paragrafos, trechos } from ".";
+import { buscar, htmlParaTexto, normalizarTexto, paragrafos, pdfParaTexto, trechos } from ".";
 
 describe("htmlParaTexto", () => {
   it("tira o texto riscado, tags e entidades, um parágrafo por linha", () => {
@@ -53,6 +53,24 @@ describe("parágrafos, trechos e busca", () => {
       ["Parágrafo ", true, false],
       ["único", true, true],
       [". Fim.", false, false],
+    ]);
+  });
+});
+
+describe("pdfParaTexto", () => {
+  it("tira a numeração de linhas e junta frases quebradas, mantendo artigos e incisos", () => {
+    const pag = [
+      "CAPÍTULO VII\n1\nDOS OFICIAIS DE JUSTIÇA\n2\nArt. 994. O presente Capítulo dispõe sobre as regras aplicáveis aos Oficiais\nde Justiça, à expedição de mandados.\n3\nArt. 995. Para os fins deste Capítulo:\nI - Considera-se:\na) Diligência: atividade do Oficial de Justiça para o cumprimento dos atos\ndescritos no mandado;",
+      "12\n§ 1º Ressalvado prazo diferente,\no mandado será devolvido.",
+    ];
+    expect(pdfParaTexto(pag).split("\n")).toEqual([
+      "CAPÍTULO VII",
+      "DOS OFICIAIS DE JUSTIÇA",
+      "Art. 994. O presente Capítulo dispõe sobre as regras aplicáveis aos Oficiais de Justiça, à expedição de mandados.",
+      "Art. 995. Para os fins deste Capítulo:",
+      "I - Considera-se:",
+      "a) Diligência: atividade do Oficial de Justiça para o cumprimento dos atos descritos no mandado;",
+      "§ 1º Ressalvado prazo diferente, o mandado será devolvido.",
     ]);
   });
 });
