@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/primitives";
-import { ResultadoSimulado } from "@/features/simulados/resultado-simulado";
+import { ApagarSimulado, ResultadoSimulado } from "@/features/simulados/resultado-simulado";
 import { carregarSimulado } from "@/lib/data/simulados";
 import { formatarData } from "@/lib/utils";
 
@@ -41,10 +41,13 @@ async function Conteudo({ params }: { params: PageProps<"/simulados/[id]">["para
           <ArrowLeft className="size-4" /> Simulados
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">{s.titulo}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {formatarData.curta(s.criadoEm.slice(0, 10))}
-          {s.penalidade ? " · um errado anula um certo" : ""}
-        </p>
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {formatarData.curta(s.criadoEm.slice(0, 10))}
+            {s.penalidade ? " · um errado anula um certo" : ""}
+          </p>
+          <ApagarSimulado id={s.id} />
+        </div>
       </header>
       <ResultadoSimulado s={s} />
     </>

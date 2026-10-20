@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Check, ChevronDown, GraduationCap, Loader2, X } from "lucide-react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Check, ChevronDown, GraduationCap, Loader2, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { apagarSimulado } from "@/app/actions/simulados";
 import { Button } from "@/components/ui/button";
 import { TextoQuestao, TextoSimples } from "@/features/questoes/texto-questao";
 import type { ItemRevisao, SimuladoCompleto } from "@/lib/data/simulados";
@@ -230,5 +232,24 @@ function ItemRevisaoLinha({ i, posicao, demo }: { i: ItemRevisao; posicao: numbe
         </div>
       )}
     </li>
+  );
+}
+
+export function ApagarSimulado({ id }: { id: string }) {
+  const router = useRouter();
+  const [apagando, iniciar] = useTransition();
+  function apagar() {
+    if (!window.confirm("Apagar este simulado? As respostas continuam contando nas suas estatísticas.")) return;
+    iniciar(async () => {
+      const r = await apagarSimulado(id);
+      if (!r.ok) toast.error(r.erro);
+      else router.push("/simulados");
+    });
+  }
+  return (
+    <Button variant="ghost" size="sm" className="text-muted-foreground" disabled={apagando} onClick={apagar}>
+      {apagando ? <Loader2 className="animate-spin" /> : <Trash2 />}
+      Apagar
+    </Button>
   );
 }
