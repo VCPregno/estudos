@@ -30,7 +30,7 @@ export function ResultadoSimulado({ s, demo = false }: { s: SimuladoCompleto; de
     <div className="flex flex-col gap-6">
       <section aria-label="Placar" className="grid gap-3 sm:grid-cols-4">
         <Placar rotulo={s.penalidade ? "Nota líquida" : "Nota"} valor={`${fmt(s.nota)}%`} destaque />
-        <Placar rotulo="Acertos" valor={`${s.acertos} de ${s.total}`} classe="text-certo" />
+        <Placar rotulo="Acertos" valor={`${s.acertos} de ${s.total}`} classe={s.acertos > 0 ? "text-certo" : undefined} />
         <Placar
           rotulo="Erros · em branco"
           valor={

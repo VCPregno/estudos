@@ -16,13 +16,15 @@ export const CorrecaoRedacaoSchema = z.object({
   ),
   erros: z.array(
     z.object({
-      trecho: z.string().describe("Trecho exato da transcrição onde está o erro (poucas palavras)."),
+      trecho: z.string().describe("O menor trecho exato da transcrição que contém o erro: em geral a própria palavra errada, no máximo três palavras."),
       correcao: z.string().describe("Como fica corrigido."),
       tipo: z.enum(["ortografia", "acentuacao", "pontuacao", "concordancia", "regencia", "crase", "coesao", "vocabulario", "estrutura", "argumentacao", "outro"]),
       explicacao: z.string().describe("A regra, em uma frase."),
     }),
   ),
-  pontos_fortes: z.array(z.string()),
+  pontos_fortes: z
+    .array(z.string())
+    .describe("Só o que está de fato no texto do candidato. Não atribua a ele citações, artigos ou argumentos que ele não escreveu."),
   melhorias: z.array(z.string()).describe("O que fazer para subir a nota, do maior impacto para o menor."),
   paragrafo_modelo: z
     .object({ original: z.string(), reescrito: z.string() })

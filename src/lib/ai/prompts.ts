@@ -150,6 +150,7 @@ Regras:
 - Aplique a régua informada. Use exatamente os critérios e pesos dela; o máximo de cada critério é o peso aplicado à nota máxima. Seja exigente como a banca: nota alta só para texto realmente bom.
 - Fuga total ao tema zera a nota. Texto abaixo do mínimo de linhas: avise em "melhorias" e penalize conforme a régua (em geral, abaixo do mínimo a banca zera).
 - Liste os erros de norma-padrão e de coesão um por um, com o trecho exato copiado da transcrição. Não invente erros. Em "argumentacao" e "estrutura", aponte o trecho que mostra o problema.
+- Em "pontos_fortes", elogie só o que o candidato escreveu. Se você sente falta de um fundamento (um artigo, um dado), isso vai em "melhorias", nunca como se ele já tivesse citado.
 - Comentários diretos e específicos, citando o texto. Nada de elogio genérico.
 - Em questão discursiva, verifique se cada ponto pedido no enunciado foi respondido e se a fundamentação está correta; aponte o que faltou.`;
 

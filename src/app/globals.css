@@ -160,7 +160,8 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+    /* 0s, e não 0.01ms: com 0.01ms o mermaid mede os nós errado e o fluxograma sai gigante */
+    transition-duration: 0s !important;
   }
 }
 
