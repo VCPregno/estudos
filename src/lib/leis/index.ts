@@ -187,7 +187,15 @@ export function pdfParaTexto(paginas: readonly string[]): string {
     .join("\n")
     .replace(/\r\n?/g, "\n")
     .split("\n")
-    .map((l) => l.replace(/[ \t ]+/g, " ").trim())
+    .map((l) =>
+      l
+        .replace(/[ \t ]+/g, " ")
+        .trim()
+        // numeração de parágrafos na margem, grudada no fim da linha: "SADMs. 5", "regras:4"
+        .replace(/([.;:,)])\s?\d{1,3}$/, "$1")
+        .replace(/^((?:CAPÍTULO|Capítulo|Seção|Subseção|TÍTULO|Título)\s+[IVXLC]+(?:-[A-Z])?)\s+\d{1,3}(?=\s|$)/, "$1")
+        .replace(/^([A-ZÁÉÍÓÚÂÊÔÃÕÇ ,;–—-]{6,}[A-ZÁÉÍÓÚÂÊÔÃÕÇ])\s\d{1,3}$/, "$1"),
+    )
     .filter((l) => l.length > 0 && !/^\d{1,4}$/.test(l));
   const out: string[] = [];
   for (const l of linhas) {

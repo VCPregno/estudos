@@ -74,3 +74,16 @@ describe("pdfParaTexto", () => {
     ]);
   });
 });
+
+describe("pdfParaTexto com numeração na margem", () => {
+  it("tira o número do parágrafo grudado no fim da linha", () => {
+    const pag = ["CAPÍTULO VII 1\nDOS OFICIAIS DE JUSTIÇA 2\nArt. 994. Dispõe sobre as SADMs. 5\nArt. 1.053. Deve seguir as regras:4\nI – No mapa:5"];
+    expect(pdfParaTexto(pag).split("\n")).toEqual([
+      "CAPÍTULO VII",
+      "DOS OFICIAIS DE JUSTIÇA",
+      "Art. 994. Dispõe sobre as SADMs.",
+      "Art. 1.053. Deve seguir as regras:",
+      "I – No mapa:",
+    ]);
+  });
+});
