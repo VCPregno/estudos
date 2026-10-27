@@ -80,8 +80,11 @@ function offsetGlobal(no: Node, offset: number): number | null {
 // -----------------------------------------------------------------------------
 
 type Barra =
-  | { tipo: "selecao"; inicio: number; fim: number; x: number; y: number }
-  | { tipo: "marca"; marca: Marcacao; x: number; y: number };
+  | { tipo: "selecao"; inicio: number; fim: number; x: number; y: number; base: number }
+  | { tipo: "marca"; marca: Marcacao; x: number; y: number; base: number };
+
+/** No toque (iPad), o menu do sistema (Copiar, Pesquisar…) aparece acima da seleção; a nossa barra vai embaixo. */
+const toque = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
 export function LeitorLei({ lei, disciplinas }: { lei: LeiCompleta; disciplinas: OpcaoDisciplina[] }) {
   const router = useRouter();
@@ -137,19 +140,36 @@ export function LeitorLei({ lei, disciplinas }: { lei: LeiCompleta; disciplinas:
   }, [atual, porParagrafo]);
 
   // seleção → barra de ferramentas
-  const aoSoltar = useCallback(() => {
-    setTimeout(() => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || !sel.rangeCount || !corpo.current) return;
-      const r = sel.getRangeAt(0);
-      if (!corpo.current.contains(r.commonAncestorContainer)) return;
-      const a = offsetGlobal(r.startContainer, r.startOffset);
-      const b = offsetGlobal(r.endContainer, r.endOffset);
-      if (a === null || b === null || b - a < 2) return;
-      const rect = r.getBoundingClientRect();
-      setBarra({ tipo: "selecao", inicio: a, fim: b, x: rect.left + rect.width / 2, y: rect.top });
-    }, 10);
+  const lerSelecao = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount || !corpo.current) {
+      // Tocou fora: a barra de uma seleção que já não existe some (a de um grifo clicado fica).
+      setBarra((b) => (b?.tipo === "selecao" ? null : b));
+      return;
+    }
+    const r = sel.getRangeAt(0);
+    if (!corpo.current.contains(r.commonAncestorContainer)) return;
+    const a = offsetGlobal(r.startContainer, r.startOffset);
+    const b = offsetGlobal(r.endContainer, r.endOffset);
+    if (a === null || b === null || b - a < 2) return;
+    const rect = r.getBoundingClientRect();
+    setBarra({ tipo: "selecao", inicio: a, fim: b, x: rect.left + rect.width / 2, y: rect.top, base: rect.bottom });
   }, []);
+  const aoSoltar = useCallback(() => setTimeout(lerSelecao, 10), [lerSelecao]);
+
+  // No iPad, arrastar as alças da seleção não gera eventos de toque na página: acompanha a seleção em si.
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const aoMudar = () => {
+      clearTimeout(t);
+      t = setTimeout(lerSelecao, 350);
+    };
+    document.addEventListener("selectionchange", aoMudar);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("selectionchange", aoMudar);
+    };
+  }, [lerSelecao]);
 
   function clicarCorpo(e: React.MouseEvent) {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-marca]");
@@ -158,7 +178,7 @@ export function LeitorLei({ lei, disciplinas }: { lei: LeiCompleta; disciplinas:
       const m = marcas.find((x) => x.id === el.dataset.marca);
       if (m) {
         const rect = el.getBoundingClientRect();
-        setBarra({ tipo: "marca", marca: m, x: rect.left + rect.width / 2, y: rect.top });
+        setBarra({ tipo: "marca", marca: m, x: rect.left + rect.width / 2, y: rect.top, base: rect.bottom });
       }
     }
   }
@@ -266,9 +286,10 @@ export function LeitorLei({ lei, disciplinas }: { lei: LeiCompleta; disciplinas:
     router.push("/leis");
   }
 
+  const embaixo = barra?.tipo === "selecao" && toque();
   const posBarra = barra && {
     left: Math.min(Math.max(barra.x, 170), (typeof window !== "undefined" ? window.innerWidth : 1000) - 170),
-    top: Math.max(barra.y - 56, 72),
+    top: embaixo ? Math.min(barra.base + 14, (typeof window !== "undefined" ? window.innerHeight : 800) - 60) : Math.max(barra.y - 56, 72),
   };
 
   return (
@@ -329,7 +350,7 @@ export function LeitorLei({ lei, disciplinas }: { lei: LeiCompleta; disciplinas:
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground">Selecione um trecho para grifar, anotar, pedir explicação ou criar flashcards. Clique num grifo para mudar ou remover.</p>
+      <p className="text-xs text-muted-foreground">Selecione um trecho (no iPad, toque e segure, depois ajuste as alças) para grifar, anotar, pedir explicação ou criar flashcards. Toque num grifo para mudar a cor ou remover.</p>
 
       <div
         ref={corpo}
