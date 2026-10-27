@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { sair } from "@/app/login/actions";
@@ -20,6 +20,7 @@ import {
   Timer,
   Trophy,
 } from "lucide-react";
+import { assinarUrlQuestoes, lerUrlQuestoes } from "@/features/questoes/estado-sessao";
 import { cn } from "@/lib/utils";
 
 export const ITENS_NAV = [
@@ -36,14 +37,21 @@ export const ITENS_NAV = [
   { href: "/conquistas", rotulo: "Conquistas", icone: Trophy, mobile: false },
 ] as const;
 
+/** Questões volta para o último filtro usado, em vez de recomeçar do zero. */
+function useDestino() {
+  const questoes = useSyncExternalStore(assinarUrlQuestoes, lerUrlQuestoes, () => "/questoes");
+  return (href: string) => (href === "/questoes" ? questoes : href);
+}
+
 function ativo(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
 export function Sidebar() {
   const pathname = usePathname();
+  const destino = useDestino();
   return (
-    <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-sidebar px-3 py-5 md:flex">
+    <aside data-sidebar-painel className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-sidebar px-3 py-5 md:flex">
       <Link href="/" className="mb-8 flex items-center gap-2.5 px-2.5">
         <span aria-hidden className="grid size-8 place-items-center rounded-lg bg-highlight text-highlight-foreground">
           <BookOpenText className="size-4.5" strokeWidth={2.25} />
@@ -56,7 +64,7 @@ export function Sidebar() {
           return (
             <Link
               key={href}
-              href={href}
+              href={destino(href)}
               aria-current={atual ? "page" : undefined}
               className={cn(
                 "group relative flex items-center gap-3 rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
@@ -86,6 +94,7 @@ export function Sidebar() {
 
 export function NavegacaoMobile() {
   const pathname = usePathname();
+  const destino = useDestino();
   const [menuAberto, setMenuAberto] = useState(false);
   const principais = ITENS_NAV.filter((i) => i.mobile);
   const outros = ITENS_NAV.filter((i) => !i.mobile);
@@ -149,7 +158,7 @@ export function NavegacaoMobile() {
           return (
             <Link
               key={href}
-              href={href}
+              href={destino(href)}
               aria-current={atual ? "page" : undefined}
               className={cn("flex flex-1 flex-col items-center gap-1 py-2 text-[11px] text-muted-foreground", atual && "text-foreground")}
             >

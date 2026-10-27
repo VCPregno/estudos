@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, FileUp, GalleryVerticalEnd, GraduationCap, ImageOff, Loader2, Scissors, Timer, X } from "lucide-react";
@@ -11,6 +11,7 @@ import { GerarCards } from "@/features/flashcards/editor-card";
 import type { OpcaoDisciplina } from "@/lib/data/flashcards";
 import type { DadosQuestoes, QuestaoTela, Situacao } from "@/lib/data/questoes";
 import { cn } from "@/lib/utils";
+import { type Rascunho, type Resposta, guardarEstado, guardarUrlQuestoes, lerEstado, lerEstadoGuardado } from "./estado-sessao";
 import { TextoQuestao, TextoSimples } from "./texto-questao";
 
 const SITUACOES: { id: Situacao; rotulo: string }[] = [
@@ -19,19 +20,56 @@ const SITUACOES: { id: Situacao; rotulo: string }[] = [
   { id: "todas", rotulo: "Todas" },
 ];
 
-interface Resposta {
-  marcada: string;
-  acertou: boolean;
-  gabarito: string;
-}
+const RASCUNHO_VAZIO: Rascunho = { marcada: null, riscadas: [] };
 
 // =============================================================================
 
-export function ResolverQuestoes({ dados, opcoesCard }: { dados: DadosQuestoes; opcoesCard: OpcaoDisciplina[] }) {
-  const [questoes, setQuestoes] = useState(dados.questoes);
-  const [indice, setIndice] = useState(0);
-  const [respostas, setRespostas] = useState<Record<string, Resposta>>({});
-  const [sessao, setSessao] = useState({ feitas: 0, certas: 0 });
+export function ResolverQuestoes({ dados, opcoesCard, chave }: { dados: DadosQuestoes; opcoesCard: OpcaoDisciplina[]; chave: string }) {
+  // Volta de outra página do menu: retoma de onde parou (a lista também, senão as já respondidas sumiriam).
+  const [inicial] = useState(() => lerEstado(chave));
+  const [questoes, setQuestoes] = useState(inicial?.questoes ?? dados.questoes);
+  const [indice, setIndice] = useState(inicial?.indice ?? 0);
+  const [respostas, setRespostas] = useState<Record<string, Resposta>>(inicial?.respostas ?? {});
+  const [sessao, setSessao] = useState(inicial?.sessao ?? { feitas: 0, certas: 0 });
+  const [rascunhos, setRascunhos] = useState<Record<string, Rascunho>>(inicial?.rascunhos ?? {});
+  const scrollY = useRef(inicial?.scrollY ?? 0);
+  const busca = useSearchParams().toString();
+
+  // App recarregado (o iPad faz isso com o PWA em segundo plano): a memória se perdeu, mas o sessionStorage não.
+  useEffect(() => {
+    if (inicial) return;
+    const g = lerEstadoGuardado(chave);
+    if (!g) return;
+    /* eslint-disable react-hooks/set-state-in-effect -- restauração única depois da hidratação */
+    setQuestoes(g.questoes);
+    setIndice(g.indice);
+    setRespostas(g.respostas);
+    setSessao(g.sessao);
+    setRascunhos(g.rascunhos);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    requestAnimationFrame(() => window.scrollTo({ top: g.scrollY }));
+  }, [chave, inicial]);
+
+  useEffect(() => {
+    guardarEstado(chave, { questoes, indice, respostas, sessao, rascunhos, scrollY: scrollY.current });
+  }, [chave, questoes, indice, respostas, sessao, rascunhos]);
+
+  // Rolagem: guarda ao sair da página e devolve ao voltar.
+  useLayoutEffect(() => {
+    if (scrollY.current > 0) {
+      const y = scrollY.current;
+      requestAnimationFrame(() => window.scrollTo({ top: y }));
+    }
+    return () => {
+      scrollY.current = window.scrollY;
+      const e = lerEstado(chave);
+      if (e) guardarEstado(chave, { ...e, scrollY: window.scrollY });
+    };
+  }, [chave]);
+
+  useEffect(() => {
+    guardarUrlQuestoes(busca ? `/questoes?${busca}` : "/questoes");
+  }, [busca]);
 
   const atual = questoes[indice] as QuestaoTela | undefined;
   const total = questoes.length;
@@ -114,6 +152,8 @@ export function ResolverQuestoes({ dados, opcoesCard }: { dados: DadosQuestoes; 
                 key={atual.id}
                 q={atual}
                 resposta={respostas[atual.id]}
+                rascunho={rascunhos[atual.id] ?? RASCUNHO_VAZIO}
+                onRascunho={(r) => setRascunhos((x) => ({ ...x, [atual.id]: r }))}
                 demo={dados.modo === "demo"}
                 opcoesCard={opcoesCard}
                 onResponder={(r) => registrar(atual, r)}
@@ -268,6 +308,8 @@ function Seletor({
 function CartaoQuestao({
   q,
   resposta,
+  rascunho,
+  onRascunho,
   demo,
   opcoesCard,
   onResponder,
@@ -277,6 +319,8 @@ function CartaoQuestao({
 }: {
   q: QuestaoTela;
   resposta: Resposta | undefined;
+  rascunho: Rascunho;
+  onRascunho: (r: Rascunho) => void;
   demo: boolean;
   opcoesCard: OpcaoDisciplina[];
   onResponder: (r: Resposta) => void;
@@ -284,8 +328,16 @@ function CartaoQuestao({
   onProxima: () => void;
   temProxima: boolean;
 }) {
-  const [marcada, setMarcada] = useState<string | null>(resposta?.marcada ?? null);
-  const [riscadas, setRiscadas] = useState<Set<string>>(new Set());
+  const marcada = resposta?.marcada ?? rascunho.marcada;
+  const riscadas = new Set(rascunho.riscadas);
+  const setMarcada = useCallback((letra: string) => onRascunho({ ...rascunho, marcada: letra }), [onRascunho, rascunho]);
+  function alternarRisco(letra: string) {
+    const n = new Set(riscadas);
+    if (n.has(letra)) n.delete(letra);
+    else n.add(letra);
+    // Riscar a que estava marcada desmarca: não faz sentido responder uma eliminada.
+    onRascunho({ marcada: n.has(letra) && rascunho.marcada === letra ? null : rascunho.marcada, riscadas: [...n] });
+  }
   const [enviando, setEnviando] = useState(false);
   const inicio = useRef(0);
   useEffect(() => {
@@ -333,7 +385,7 @@ function CartaoQuestao({
     }
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
-  }, [letras, respondida, responder, onProxima, temProxima]);
+  }, [letras, respondida, responder, onProxima, temProxima, setMarcada]);
 
   const ultima = q.status.tentativas > 0 && !respondida;
 
@@ -418,16 +470,9 @@ function CartaoQuestao({
                   type="button"
                   aria-label={riscada ? `Desfazer risco da alternativa ${a.letra}` : `Riscar alternativa ${a.letra}`}
                   title={riscada ? "Desfazer risco" : "Riscar"}
-                  onClick={() =>
-                    setRiscadas((s) => {
-                      const n = new Set(s);
-                      if (n.has(a.letra)) n.delete(a.letra);
-                      else n.add(a.letra);
-                      return n;
-                    })
-                  }
+                  onClick={() => alternarRisco(a.letra)}
                   className={cn(
-                    "grid w-9 shrink-0 place-items-center rounded-lg text-muted-foreground opacity-0 transition-opacity outline-none group-hover/alt:opacity-100 hover:bg-accent focus-visible:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/40 max-md:opacity-60",
+                    "grid w-9 shrink-0 place-items-center rounded-lg text-muted-foreground opacity-0 transition-opacity outline-none group-hover/alt:opacity-100 hover:bg-accent focus-visible:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/40 max-md:opacity-60 pointer-coarse:opacity-60",
                     riscada && "opacity-100",
                   )}
                 >

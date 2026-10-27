@@ -181,3 +181,8 @@
     border: 0;
   }
 }
+
+/* Barra lateral oculta pelo botão do cabeçalho (o atributo é posto antes da pintura, ver sidebar-oculta.tsx). */
+html[data-sidebar="oculta"] [data-sidebar-painel] {
+  display: none;
+}

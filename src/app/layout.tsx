@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/layout/providers";
+import { SCRIPT_SIDEBAR } from "@/components/layout/sidebar-oculta";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,6 +20,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_SIDEBAR }} />
+      </head>
       <body className="min-h-dvh antialiased">
         <Providers>{children}</Providers>
       </body>

@@ -616,7 +616,7 @@ function Caderno({ inicial, onEntregue }: { inicial: Andamento; onEntregue: (r: 
                     title={riscada ? "Desfazer risco" : "Riscar"}
                     onClick={() => riscar(alt.letra)}
                     className={cn(
-                      "grid w-9 shrink-0 place-items-center rounded-lg text-muted-foreground opacity-0 transition-opacity outline-none group-hover/alt:opacity-100 hover:bg-accent focus-visible:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/40 max-md:opacity-60",
+                      "grid w-9 shrink-0 place-items-center rounded-lg text-muted-foreground opacity-0 transition-opacity outline-none group-hover/alt:opacity-100 hover:bg-accent focus-visible:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/40 max-md:opacity-60 pointer-coarse:opacity-60",
                       riscada && "opacity-100",
                     )}
                   >

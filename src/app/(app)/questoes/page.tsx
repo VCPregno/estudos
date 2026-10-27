@@ -38,5 +38,5 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/questoes">
     situacao: (situacao === "erradas" || situacao === "todas" ? situacao : "nao_resolvidas") as Situacao,
   };
   const [dados, opcoesCard] = await Promise.all([carregarQuestoes(filtros), carregarDisciplinasComTopicos()]);
-  return <ResolverQuestoes key={JSON.stringify(filtros)} dados={dados} opcoesCard={opcoesCard} />;
+  return <ResolverQuestoes key={JSON.stringify(filtros)} chave={JSON.stringify(filtros)} dados={dados} opcoesCard={opcoesCard} />;
 }
